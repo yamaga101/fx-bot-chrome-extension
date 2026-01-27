@@ -1,0 +1,12 @@
+{
+    "name": "fx-bot-chrome-extension",
+    "version": "16.2.0",
+    "description": "FXデモサイト用の4通貨ペア同時対応自動売買ツール",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yamaga101/fx-bot-chrome-extension.git"
+    },
+    "author": "yamaga101",
+    "license": "MIT",
+    "private": true
+}

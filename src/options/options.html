@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Bot v16.2 - 設定</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 FX Bot v16.2</h1>
+            <p class="subtitle">デモ専用自動売買ツール設定</p>
+        </header>
+
+        <main>
+            <!-- 通貨ペア設定 -->
+            <section class="card">
+                <h2>📊 通貨ペア設定</h2>
+                <div class="pair-grid" id="pairSettings">
+                    <label class="pair-item">
+                        <input type="checkbox" id="pair_USDJPY" checked>
+                        <span class="pair-name" style="border-color: #4dabf7;">USD/JPY</span>
+                    </label>
+                    <label class="pair-item">
+                        <input type="checkbox" id="pair_EURUSD" checked>
+                        <span class="pair-name" style="border-color: #fab005;">EUR/USD</span>
+                    </label>
+                    <label class="pair-item">
+                        <input type="checkbox" id="pair_AUDJPY" checked>
+                        <span class="pair-name" style="border-color: #ff6b6b;">AUD/JPY</span>
+                    </label>
+                    <label class="pair-item">
+                        <input type="checkbox" id="pair_GBPJPY" checked>
+                        <span class="pair-name" style="border-color: #20c997;">GBP/JPY</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- ベット設定 -->
+            <section class="card">
+                <h2>💰 ベット設定</h2>
+                <div class="form-group">
+                    <label for="betStep1">ステップ1 (通貨)</label>
+                    <input type="number" id="betStep1" value="1000" min="100" step="100">
+                </div>
+                <div class="form-group">
+                    <label for="betStep2">ステップ2 (通貨)</label>
+                    <input type="number" id="betStep2" value="2000" min="100" step="100">
+                </div>
+                <div class="form-group">
+                    <label for="betStep3">ステップ3 (通貨)</label>
+                    <input type="number" id="betStep3" value="4000" min="100" step="100">
+                </div>
+            </section>
+
+            <!-- タイミング設定 -->
+            <section class="card">
+                <h2>⏱️ タイミング設定</h2>
+                <div class="form-group">
+                    <label for="orderCooldown">発注クールダウン (秒)</label>
+                    <input type="number" id="orderCooldown" value="10" min="5" max="60">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoLaunch" checked>
+                        <span>起動時にウィンドウを自動オープン</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- アクションボタン -->
+            <div class="actions">
+                <button id="btnSave" class="btn btn-primary">💾 設定を保存</button>
+                <button id="btnExport" class="btn btn-secondary">📤 エクスポート</button>
+                <button id="btnImport" class="btn btn-secondary">📥 インポート</button>
+                <button id="btnReset" class="btn btn-danger">🗑️ リセット</button>
+            </div>
+
+            <!-- 更新情報 -->
+            <section class="card update-section">
+                <h2>🔄 更新情報</h2>
+                <div id="updateStatus">
+                    <p>現在のバージョン: <strong id="currentVersion">-</strong></p>
+                    <p id="updateMessage"></p>
+                </div>
+                <button id="btnCheckUpdate" class="btn btn-secondary">更新を確認</button>
+            </section>
+
+            <!-- ログ表示 -->
+            <section class="card">
+                <h2>📝 最新ログ</h2>
+                <div id="logDisplay" class="log-area">ログなし</div>
+            </section>
+        </main>
+
+        <footer>
+            <p>⚠️ このツールはデモ環境専用です。本番取引には使用しないでください。</p>
+        </footer>
+    </div>
+
+    <input type="file" id="importFile" accept=".json" style="display: none;">
+    <script src="options.js"></script>
+</body>
+</html>

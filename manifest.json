@@ -1,0 +1,53 @@
+{
+    "manifest_version": 3,
+    "name": "FX Bot v16.2 - デモ専用自動売買",
+    "version": "16.2.0",
+    "description": "FXデモサイト用の4通貨ペア同時対応自動売買ツール（本番使用禁止）",
+    "author": "yamaga101",
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "permissions": [
+        "storage",
+        "notifications"
+    ],
+    "host_permissions": [
+        "https://vt-fx.gaikaex.com/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://vt-fx.gaikaex.com/servlet/lzca.pc.cfr001.servlet.CFr00101*"
+            ],
+            "js": [
+                "src/lib/storage.js",
+                "src/content/main-page.js"
+            ],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "https://vt-fx.gaikaex.com/servlet/lzca.pc.cht200.servlet.CHt20011*"
+            ],
+            "js": [
+                "src/lib/storage.js",
+                "src/content/popup-page.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "background": {
+        "service_worker": "src/background/service-worker.js"
+    },
+    "options_page": "src/options/options.html",
+    "action": {
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "48": "icons/icon48.png"
+        },
+        "default_title": "FX Bot 設定"
+    },
+    "update_url": "https://raw.githubusercontent.com/yamaga101/fx-bot-chrome-extension/main/updates.xml"
+}

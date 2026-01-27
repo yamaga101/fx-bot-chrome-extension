@@ -1,0 +1,37 @@
+name: Release Chrome Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Create ZIP
+        run: |
+          zip -r fx-bot-chrome-extension-${{ steps.get_version.outputs.VERSION }}.zip . \
+            -x "*.git*" \
+            -x "*.github/*" \
+            -x "*.DS_Store" \
+            -x "package*.json" \
+            -x "node_modules/*"
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: fx-bot-chrome-extension-${{ steps.get_version.outputs.VERSION }}.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
