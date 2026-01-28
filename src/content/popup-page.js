@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.8 - ポップアップ画面ロジック (CHt20011)
+// FX Bot v16.8.1 - ポップアップ画面ロジック (CHt20011)
 // 自動売買メインループ
 // ========================================================================
 
@@ -93,6 +93,15 @@
     // 通貨ペア特定
     // ========================================================================
     const getAssignedPair = async () => {
+        // 優先: 画面テキストから判定（手動起動対応）
+        // タイトルや通貨ペア表示エリアを探して判定する
+        const body = document.body.innerText;
+        if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
+        if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
+        if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
+        if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
+
+        // フォールバック: 自動割り当てキュー（後方互換性）
         const pending = await Storage.get('fxBot_v16_PendingPairs', []);
         const idx = await Storage.get('fxBot_v16_PairIndex', 0);
         if (idx < pending.length) {
@@ -100,13 +109,8 @@
             await Storage.set('fxBot_v16_PairIndex', idx + 1);
             return pair;
         }
-        // フォールバック: 画面テキストから判定
-        const body = document.body.innerText;
-        if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
-        if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
-        if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
-        if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
-        return 'USDJPY';
+
+        return 'USDJPY'; // デフォルト
     };
 
     // ========================================================================
@@ -315,9 +319,9 @@
             window.resizeTo(350, 500);
         }
 
-        // 通貨ペア切替
-        await sleep(2000);
+        // 通貨ペアUI切替（念のため、判定されたペアに強制的にUIを合わせる）
         await switchPairUI(currentPair);
+        await sleep(1000); // UI反映待ち
 
         // メインループ開始
         startMonitor(currentPair);
