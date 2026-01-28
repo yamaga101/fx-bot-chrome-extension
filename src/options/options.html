@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Bot v17.3 - 設定</title>
+    <title>FX Bot v17.4 - 設定</title>
     <link rel="stylesheet" href="options.css">
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>🤖 FX Bot v17.3</h1>
+            <h1>🤖 FX Bot v17.4</h1>
             <p class="subtitle">デモ専用自動売買ツール設定</p>
         </header>
 
@@ -23,13 +23,10 @@
                     <p class="desc">使用する通貨ペアと、許容する最大スプレッドを設定します。</p>
 
                     <div class="pair-grid-layout">
-                        <!-- Header -->
                         <div class="grid-header">ペア</div>
                         <div class="grid-header">有効</div>
-                        <div class="grid-header">最大スプレッド <span class="tooltip-icon"
-                                title="この値（pips/銭）より広いスプレッドではエントリーを見送ります。0.0で制限なし。">?</span></div>
+                        <div class="grid-header">最大SP</div>
 
-                        <!-- Rows -->
                         <div class="grid-row">
                             <div class="pair-label" style="border-left-color: #4dabf7;">USD/JPY</div>
                             <div class="center"><input type="checkbox" id="pair_USDJPY" checked></div>
@@ -53,21 +50,22 @@
                     </div>
                 </section>
 
-                <!-- ベット設定 -->
+                <!-- エントリー数量条件 -->
                 <section class="card">
-                    <h2>💰 ベット設定</h2>
+                    <h2>💰 エントリー数量条件</h2>
+                    <p class="desc">勝敗に応じた数量を設定。3連勝でStep1にリセットされます。</p>
                     <div class="bet-grid">
                         <div class="form-group-mini">
-                            <label>ステップ1</label>
-                            <input type="number" id="betStep1" value="1000">
+                            <label>Step1 (負け後)</label>
+                            <input type="number" id="betStep1" value="1000" step="100" min="100">
                         </div>
                         <div class="form-group-mini">
-                            <label>ステップ2</label>
-                            <input type="number" id="betStep2" value="2000">
+                            <label>Step2 (1勝後)</label>
+                            <input type="number" id="betStep2" value="2000" step="100" min="100">
                         </div>
                         <div class="form-group-mini">
-                            <label>ステップ3</label>
-                            <input type="number" id="betStep3" value="4000">
+                            <label>Step3 (2連勝後)</label>
+                            <input type="number" id="betStep3" value="4000" step="100" min="100">
                         </div>
                     </div>
                 </section>
@@ -75,42 +73,42 @@
                 <!-- タイミング設定 -->
                 <section class="card">
                     <h2>⏱️ エントリー待機間隔 (秒)</h2>
-                    <p class="desc">エントリー間の待機時間です。この範囲のランダムな時間が適用されます。</p>
-                    <div style="display: flex; gap: 8px; align-items: center; margin-top: 12px;">
-                        <input type="number" id="commonIntervalMin" value="8.0" min="1.0" max="60.0" step="0.1"
-                            placeholder="最小">
+                    <p class="desc">エントリー間の待機時間（ランダム）</p>
+                    <div class="interval-row">
+                        <input type="number" id="commonIntervalMin" value="8.0" min="1.0" max="60.0" step="0.1">
                         <span>〜</span>
-                        <input type="number" id="commonIntervalMax" value="15.0" min="1.0" max="60.0" step="0.1"
-                            placeholder="最大">
-                        <span style="font-size: 12px; color: #888;">秒</span>
+                        <input type="number" id="commonIntervalMax" value="15.0" min="1.0" max="60.0" step="0.1">
+                        <span class="unit">秒</span>
                     </div>
                 </section>
 
                 <!-- その他 -->
-                <div class="form-group checkbox-group card">
-                    <label for="autoLaunch" style="cursor: pointer; display: flex; align-items: center; width: 100%;">
+                <div class="card checkbox-card">
+                    <label for="autoLaunch">
                         <input type="checkbox" id="autoLaunch" checked>
-                        <span style="margin-left: 8px;">起動時にウィンドウを自動オープン</span>
+                        <span>起動時にウィンドウを自動オープン</span>
                     </label>
                 </div>
             </form>
 
             <!-- アクションボタン -->
             <div class="actions">
-                <button id="btnSave" class="btn btn-primary">💾 設定を保存</button>
+                <button id="btnSave" class="btn btn-primary">💾 保存</button>
                 <button id="btnExport" class="btn btn-secondary">📤 エクスポート</button>
                 <button id="btnImport" class="btn btn-secondary">📥 インポート</button>
                 <button id="btnReset" class="btn btn-danger">🗑️ リセット</button>
             </div>
 
             <!-- 更新情報 -->
-            <section class="card update-section">
+            <section class="card">
                 <h2>🔄 更新情報</h2>
                 <div id="updateStatus">
-                    <p>現在のバージョン: <strong id="currentVersion">-</strong></p>
+                    <p>現在: <strong id="currentVersion">-</strong></p>
                     <p id="updateMessage"></p>
                 </div>
-                <button id="btnCheckUpdate" class="btn btn-primary">更新を確認</button>
+                <div class="actions">
+                    <button id="btnCheckUpdate" class="btn btn-primary">更新を確認</button>
+                </div>
             </section>
 
             <!-- ログ表示 -->

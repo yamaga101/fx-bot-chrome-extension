@@ -1,5 +1,5 @@
 /* ========================================================================
-   FX Bot v17.3 - オプションページスタイル
+   FX Bot v17.4 - オプションページスタイル
    ======================================================================== */
 
 * {
@@ -65,17 +65,22 @@ header h1 {
     gap: 8px;
 }
 
-/* 通貨ペアグリッド */
-.pair-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+/* チェックボックスカード */
+.checkbox-card {
+    padding: 16px 20px;
 }
 
-/* グリッドレイアウト（通貨ペア & スプレッド） */
+.checkbox-card label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+/* グリッドレイアウト */
 .pair-grid-layout {
     display: grid;
-    grid-template-columns: 1fr 60px 100px;
+    grid-template-columns: 1fr 50px 80px;
     gap: 8px 12px;
     align-items: center;
     margin-top: 12px;
@@ -120,21 +125,27 @@ header h1 {
     gap: 12px;
 }
 
+/* インターバル行 */
+.interval-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.interval-row input {
+    width: 80px;
+}
+
+.interval-row .unit {
+    font-size: 12px;
+    color: #888;
+}
+
 /* フォーム */
-.form-group {
-    margin-bottom: 16px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 13px;
-    color: #aaa;
-    margin-bottom: 6px;
-}
-
 input[type="number"] {
     width: 100%;
-    padding: 10px 14px;
+    padding: 10px 12px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
@@ -178,53 +189,28 @@ input[type="checkbox"] {
     font-size: 10px;
     margin-left: 6px;
     cursor: help;
-    position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.tooltip-icon:hover {
-    background: #4dabf7;
-    border-color: #4dabf7;
-}
-
-.tooltip-icon:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #111;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
-    z-index: 1000;
-    margin-bottom: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* アクションボタン */
 .actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 16px;
 }
 
 .btn {
-    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 14px;
+    padding: 12px 8px;
     border: none;
     border-radius: 8px;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 14px;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .btn-primary {
@@ -257,12 +243,26 @@ input[type="checkbox"] {
 }
 
 /* 更新セクション */
-.update-section #updateMessage {
+#updateStatus {
+    margin-bottom: 12px;
+}
+
+#updateMessage {
     color: #4dabf7;
     margin-top: 8px;
 }
 
-.update-section .has-update {
+#updateMessage a {
+    color: #20c997;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+#updateMessage a:hover {
+    text-decoration: underline;
+}
+
+.has-update {
     color: #20c997;
     font-weight: bold;
 }
@@ -275,7 +275,7 @@ input[type="checkbox"] {
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 12px;
     color: #aaa;
-    max-height: 150px;
+    max-height: 120px;
     overflow-y: auto;
     white-space: pre-wrap;
     word-break: break-all;
@@ -284,7 +284,7 @@ input[type="checkbox"] {
 /* フッター */
 footer {
     text-align: center;
-    padding: 20px;
+    padding: 16px;
     color: #ff6b6b;
     font-size: 12px;
     background: rgba(255, 107, 107, 0.1);
@@ -298,7 +298,7 @@ footer {
     position: fixed;
     bottom: 30px;
     right: 30px;
-    padding: 16px 28px;
+    padding: 14px 24px;
     background: linear-gradient(135deg, #20c997, #12b886);
     color: #fff;
     border-radius: 12px;

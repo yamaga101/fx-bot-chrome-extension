@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v17.3 - オプションページロジック
+// FX Bot v17.4 - オプションページロジック
 // ========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -27,7 +27,6 @@ async function loadSettings() {
 
         const spreadInput = document.getElementById(`spread_${pair}`);
         if (spreadInput && settings.maxSpread) {
-            // 全ペア共通で小数点第一位表示
             const val = settings.maxSpread[pair] || getDefaultSpread(pair);
             spreadInput.value = Number(val).toFixed(1);
         }
@@ -80,12 +79,8 @@ async function saveSettings() {
     };
 
     await chrome.storage.local.set({ fxBot_settings: settings });
-
-    // 数値フォーマットを再整形して表示
     await loadSettings();
-
-    // トースト表示
-    showToast('✓ 設定を保存しました');
+    showToast('✓ 保存しました');
 }
 
 function getDefaultSettings() {
@@ -113,7 +108,7 @@ async function exportSettings() {
     a.download = `fx-bot-settings-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('✓ エクスポートしました');
+    showToast('✓ エクスポート完了');
 }
 
 async function importSettings(e) {
@@ -124,7 +119,7 @@ async function importSettings(e) {
         const data = JSON.parse(text);
         await chrome.storage.local.set(data);
         await loadSettings();
-        showToast('✓ インポートしました');
+        showToast('✓ インポート完了');
     } catch (error) {
         showToast('✗ インポート失敗', true);
     }
@@ -140,24 +135,31 @@ async function resetSettings() {
         'fxBot_v16_HasLaunched': false
     });
     await loadSettings();
-    showToast('✓ リセットしました');
+    showToast('✓ リセット完了');
 }
 
 async function checkUpdate() {
     const btn = document.getElementById('btnCheckUpdate');
     btn.disabled = true;
     btn.textContent = '確認中...';
+
     try {
         const result = await chrome.runtime.sendMessage({ action: 'checkUpdate' });
         const msgEl = document.getElementById('updateMessage');
+
         if (result && result.hasUpdate) {
-            msgEl.innerHTML = `<span class="has-update">🎉 v${result.latestVersion} が利用可能！</span>`;
+            const downloadUrl = result.downloadUrl || 'https://github.com/yamaga101/fx-bot-chrome-extension/releases';
+            msgEl.innerHTML = `
+                <span class="has-update">🎉 v${result.latestVersion} が利用可能！</span><br>
+                <a href="${downloadUrl}" target="_blank">📥 ダウンロードページを開く</a>
+            `;
         } else {
             msgEl.textContent = '✓ 最新バージョンです';
         }
     } catch (error) {
         document.getElementById('updateMessage').textContent = '更新確認に失敗しました';
     }
+
     btn.disabled = false;
     btn.textContent = '更新を確認';
 }
@@ -176,7 +178,6 @@ function showToast(message, isError = false) {
     toast.textContent = message;
     document.body.appendChild(toast);
 
-    // アニメーション後に削除
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(20px)';

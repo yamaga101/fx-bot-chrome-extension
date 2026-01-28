@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '17.3',
+        VERSION: '17.4',
         DEMO_ONLY: true,
     };
 
@@ -182,9 +182,11 @@
                             <b>${CURRENCY_PAIRS[pair].name}</b>
                             <span id="status_${pair}" style="color: #4dabf7; font-size: 10px;">---</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #aaa;">
-                            <span>Pos: <span id="pos_${pair}">0</span></span>
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #aaa; margin-bottom: 2px;">
+                            <span id="pos_${pair}">S:0 / L:0</span>
                             <span>P/L: <span id="pl_${pair}">0</span></span>
+                        </div>
+                        <div style="font-size: 10px; color: #aaa;">
                             <span>SP: <span id="sp_${pair}" style="color: #ffd700;">-</span></span>
                         </div>
                     </div>
@@ -197,7 +199,6 @@
                     const statusEl = document.getElementById(`status_${pair}`);
                     if (statusEl && stats.status) {
                         statusEl.textContent = stats.status;
-                        // ステータスに応じて色を変える
                         if (stats.status.includes('保有')) {
                             statusEl.style.color = '#20c997';
                         } else if (stats.status.includes('超過')) {
@@ -213,12 +214,20 @@
                         }
                     }
 
-                    const q = (stats.qL || 0) + (stats.qS || 0);
-                    document.getElementById(`pos_${pair}`).textContent = q > 0 ? `${q}通貨` : 'ノーポジ';
+                    // ポジション表示 (S:xxx / L:xxx形式)
+                    const qL = stats.qL || 0;
+                    const qS = stats.qS || 0;
+                    document.getElementById(`pos_${pair}`).textContent = `S:${qS} / L:${qL}`;
+
+                    // P/L表示
                     const pl = (stats.plL || 0) + (stats.plS || 0);
                     document.getElementById(`pl_${pair}`).textContent = pl.toLocaleString();
                     document.getElementById(`pl_${pair}`).style.color = pl >= 0 ? '#20c997' : '#ff6b6b';
-                    document.getElementById(`sp_${pair}`).textContent = stats.sp || '-';
+
+                    // SP表示 (現在値/設定値形式)
+                    const sp = stats.sp || '-';
+                    const maxSp = stats.maxSp || '-';
+                    document.getElementById(`sp_${pair}`).textContent = `${sp}/${maxSp}`;
                 }
             }
         }, 500);

@@ -1,6 +1,6 @@
 // ========================================================================
-// FX Bot v17.3 - ポップアップ画面ロジック
-// 自動売買メインループ（エントリー過剰防止・ウィンドウ配置修正）
+// FX Bot v17.4 - ポップアップ画面ロジック
+// 自動売買メインループ（パネル表示改善・エントリー条件設定対応）
 // ========================================================================
 
 (function () {
@@ -200,7 +200,8 @@
         setInterval(async () => {
             const running = await Storage.get(KEYS.RUNNING, false);
             if (!running) {
-                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status: '停止中', sp: '-', qL: 0, qS: 0, plL: 0, plS: 0 });
+                const maxSp = MAX_SPREAD[currentPair] || 1.0;
+                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status: '停止中', sp: '-', maxSp, qL: 0, qS: 0, plL: 0, plS: 0 });
                 return;
             }
 
@@ -238,12 +239,12 @@
             }
 
             if (sp === null || isOrdering) {
-                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1) || '-', qL, qS, plL, plS });
+                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1) || '-', maxSp, qL, qS, plL, plS });
                 return;
             }
 
-            // UI更新
-            await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1), qL, qS, plL, plS });
+            // UI更新（maxSpも含める）
+            await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1), maxSp, qL, qS, plL, plS });
 
             // 決済判定
             const prevL = await getPairCfg(currentPair, 'PREV_QL', 0);
@@ -287,7 +288,7 @@
     // ========================================================================
     const init = async () => {
         const currentPair = await getAssignedPair();
-        await liveLog(`[${currentPair}] Window Active (v17.3)`);
+        await liveLog(`[${currentPair}] Window Active (v17.4)`);
 
         // 位置調整
         const positions = await Storage.get('fxBot_v16_WindowPositions', []);
