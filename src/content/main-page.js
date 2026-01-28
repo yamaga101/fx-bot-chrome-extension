@@ -178,11 +178,12 @@
             if (!container.innerHTML) {
                 container.innerHTML = PAIR_CODES.map(pair => `
                     <div id="card_${pair}" style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; margin-bottom: 8px; border-left: 4px solid ${CURRENCY_PAIRS[pair].style};">
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
                             <b>${CURRENCY_PAIRS[pair].name}</b>
-                            <span id="pos_${pair}" style="color: #fff;">0</span>
+                            <span id="status_${pair}" style="color: #4dabf7; font-size: 10px;">---</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 10px; color: #aaa;">
+                            <span>Pos: <span id="pos_${pair}">0</span></span>
                             <span>P/L: <span id="pl_${pair}">0</span></span>
                             <span>SP: <span id="sp_${pair}" style="color: #ffd700;">-</span></span>
                         </div>
@@ -192,6 +193,26 @@
             for (const pair of PAIR_CODES) {
                 const stats = await Storage.get(`fxBot_v16_UI_${pair}`, {});
                 if (document.getElementById(`pos_${pair}`)) {
+                    // ステータス表示
+                    const statusEl = document.getElementById(`status_${pair}`);
+                    if (statusEl && stats.status) {
+                        statusEl.textContent = stats.status;
+                        // ステータスに応じて色を変える
+                        if (stats.status.includes('保有')) {
+                            statusEl.style.color = '#20c997';
+                        } else if (stats.status.includes('超過')) {
+                            statusEl.style.color = '#ff6b6b';
+                        } else if (stats.status.includes('待機')) {
+                            statusEl.style.color = '#fab005';
+                        } else if (stats.status.includes('準備OK')) {
+                            statusEl.style.color = '#4dabf7';
+                        } else if (stats.status.includes('停止')) {
+                            statusEl.style.color = '#888';
+                        } else {
+                            statusEl.style.color = '#4dabf7';
+                        }
+                    }
+
                     const q = (stats.qL || 0) + (stats.qS || 0);
                     document.getElementById(`pos_${pair}`).textContent = q > 0 ? `${q}通貨` : 'ノーポジ';
                     const pl = (stats.plL || 0) + (stats.plS || 0);

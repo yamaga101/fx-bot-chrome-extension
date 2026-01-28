@@ -199,7 +199,10 @@
     const startMonitor = (currentPair) => {
         setInterval(async () => {
             const running = await Storage.get(KEYS.RUNNING, false);
-            if (!running) return;
+            if (!running) {
+                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status: '停止中', sp: '-', qL: 0, qS: 0, plL: 0, plS: 0 });
+                return;
+            }
 
             const sp = getNum(SELECTORS.SPREAD);
             const qL = getNum(SELECTORS.BUY_POS_QTY) || 0;
@@ -207,11 +210,40 @@
             const plL = getNum(SELECTORS.PL_YEN_BUY) || 0;
             const plS = getNum(SELECTORS.PL_YEN_SELL) || 0;
 
-            if (sp === null || isOrdering) return;
+            // スプレッド表示用
+            const displaySp = (currentPair === 'EURUSD' && sp !== null && sp < 1.0) ? (sp * 10000) : sp;
+            const maxSp = MAX_SPREAD[currentPair] || 1.0;
+
+            // ステータス判定
+            let status = '待機中';
+            if (isOrdering) {
+                status = 'エントリー中';
+            } else if (qL > 0 && qS > 0) {
+                status = '両建て保有';
+            } else if (qL > 0 || qS > 0) {
+                status = 'ポジション保有';
+            } else if (displaySp !== null && displaySp > maxSp) {
+                status = `SP超過 (${displaySp?.toFixed(1)}>${maxSp})`;
+            } else {
+                // ロック中かチェック
+                const now = Date.now();
+                const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
+                const minWait = GLOBAL_ORDER_INTERVAL_MS?.min || 8000;
+                const remaining = Math.max(0, minWait - (now - globalLock));
+                if (remaining > 0) {
+                    status = `待機中 (${Math.ceil(remaining / 1000)}秒)`;
+                } else {
+                    status = 'エントリー準備OK';
+                }
+            }
+
+            if (sp === null || isOrdering) {
+                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1) || '-', qL, qS, plL, plS });
+                return;
+            }
 
             // UI更新
-            const displaySp = (currentPair === 'EURUSD' && sp < 1.0) ? (sp * 10000) : sp;
-            await Storage.set(`fxBot_v16_UI_${currentPair}`, { sp: displaySp.toFixed(1), qL, qS, plL, plS });
+            await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1), qL, qS, plL, plS });
 
             // 決済判定
             const prevL = await getPairCfg(currentPair, 'PREV_QL', 0);
