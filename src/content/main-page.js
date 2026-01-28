@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.7.2',
+        VERSION: '16.8',
         DEMO_ONLY: true,
     };
 
@@ -206,73 +206,34 @@
     };
 
     // ========================================================================
-    // ウィンドウ起動ロジック（inject.js経由・MAINコンテキスト実行）
-    // ========================================================================
-    const launchOneTouchWindows = async () => {
-        const enabledPairs = PAIR_CODES;
-        await Storage.set('fxBot_v16_PendingPairs', enabledPairs);
-        await Storage.set('fxBot_v16_PairIndex', 0);
-
-        const positions = enabledPairs.map((pair, i) => ({
-            pair: pair,
-            x: WINDOW_CONFIG.startX + (i % WINDOW_CONFIG.cols) * (WINDOW_CONFIG.width + WINDOW_CONFIG.gapX),
-            y: WINDOW_CONFIG.startY + Math.floor(i / WINDOW_CONFIG.cols) * (WINDOW_CONFIG.height + WINDOW_CONFIG.gapY)
-        }));
-        await Storage.set('fxBot_v16_WindowPositions', positions);
-
-        await liveLog(`ウィンドウ一括起動を開始 (Method: Injection)...`);
-
-        // 1. スクリプト注入 (初回のみ)
-        if (!document.getElementById('fxbot-injector')) {
-            const script = document.createElement('script');
-            script.id = 'fxbot-injector';
-            script.src = chrome.runtime.getURL('src/content/inject.js');
-            script.onload = function () {
-                this.remove();
-            };
-            (document.head || document.documentElement).appendChild(script);
-            await liveLog(`制御スクリプトをページに注入しました`);
-            await sleep(1000); // 読み込み待機
-        }
-
-        // 2. ペアごとにメッセージ送信
-        for (let i = 0; i < enabledPairs.length; i++) {
-            const pair = enabledPairs[i];
-
-            window.postMessage({ type: 'FXBOT_EXEC_CMD', command: 'openWindow', pair: pair }, '*');
-            await liveLog(`[${pair}] 起動リクエスト送信`);
-
-            // 次のウィンドウまで待機（セッション混線防止のため長めに）
-            await sleep(3000);
-        }
-
-        await liveLog(`全ウィンドウ起動シーケンス完了`);
-        const msgEl = document.getElementById('msgAutoLaunch');
-        if (msgEl) {
-            msgEl.textContent = 'ウィンドウ起動完了 / 自動売買準備OK';
-            msgEl.style.color = '#20c997';
-        }
-    };
-
-    // ========================================================================
     // 初期化
     // ========================================================================
     const init = async () => {
-        await createPanel();
+        console.log(`FX Bot v${CONFIG.VERSION} - Main Page Logic Loaded`);
 
-        // 自動起動ロジック
-        setTimeout(async () => {
-            // 設定で自動起動がONになっているか確認
-            const settings = await chrome.storage.local.get('fxBot_settings');
-            const autoLaunchEnabled = settings.fxBot_settings?.autoLaunch !== false; // デフォルトtrue
+        // 自動起動機能は廃止されました (v16.8)
+        // ユーザーの手動操作でウィンドウが開かれるのを待ちます
 
-            const hasLaunched = await Storage.get(KEYS.HAS_LAUNCHED, false);
-            if (autoLaunchEnabled && !hasLaunched) {
-                await launchOneTouchWindows();
-                await Storage.set(KEYS.HAS_LAUNCHED, true);
-            }
-        }, 3000);
+        await liveLog('自動売買システム待機中... 各通貨ペアのウィンドウを手動で開いてください。');
+
+        // パネルは表示しておく
+        createPanel();
+
+        const msgEl = document.getElementById('msgAutoLaunch');
+        if (msgEl) {
+            msgEl.textContent = '準備完了: 手動でウィンドウを開いてください';
+            msgEl.style.color = '#4dabf7';
+        }
+
+        // 初期化としてロックやペアインデックスをリセットしておく
+        await Storage.set('fxBot_v16_PairIndex', 0);
+        await Storage.set('fxBot_v16_GlobalOrderLock', 0);
     };
 
-    init();
+    // ページロード完了を待って実行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();

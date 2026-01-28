@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.7.2 - オプションページロジック
+// FX Bot v16.8 - オプションページロジック
 // ========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -112,7 +112,7 @@ async function saveSettings() {
         globalInterval: commonInterval,
         maxSpread,
         // pairDelays設定は削除
-        autoLaunch: document.getElementById('autoLaunch').checked
+        // autoLaunch: document.getElementById('autoLaunch').checked // autoLaunchは廃止
     };
 
     await chrome.storage.local.set({ fxBot_settings: settings });
@@ -132,8 +132,8 @@ function getDefaultSettings() {
             EURUSD: 0.5, // 0.00005 -> 0.5 (pips単位に合わせるためと思われるが、要望通り0.5とする)
             AUDJPY: 0.7,
             GBPJPY: 1.0
-        },
-        autoLaunch: true
+        }
+        // autoLaunch: 廃止
     };
 }
 
