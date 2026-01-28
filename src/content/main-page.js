@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.5',
+        VERSION: '17.3',
         DEMO_ONLY: true,
     };
 
@@ -286,12 +286,25 @@
     const init = async () => {
         await createPanel();
 
-        // 自動起動ロジック
+        // 自動起動ロジック（設定を確認）
         setTimeout(async () => {
             const hasLaunched = await Storage.get(KEYS.HAS_LAUNCHED, false);
             if (!hasLaunched) {
-                await launchOneTouchWindows();
-                await Storage.set(KEYS.HAS_LAUNCHED, true);
+                // 設定画面の自動起動設定を確認
+                const { fxBot_settings } = await chrome.storage.local.get('fxBot_settings');
+                const autoLaunch = fxBot_settings?.autoLaunch !== false;
+
+                if (autoLaunch) {
+                    await launchOneTouchWindows();
+                    await Storage.set(KEYS.HAS_LAUNCHED, true);
+                } else {
+                    await liveLog('自動起動OFF: 手動で起動してください');
+                    const msgEl = document.getElementById('msgAutoLaunch');
+                    if (msgEl) {
+                        msgEl.textContent = '自動起動OFF: 「ウィンドウ起動」ボタンを押してください';
+                        msgEl.style.color = '#fab005';
+                    }
+                }
             }
         }, 3000);
     };

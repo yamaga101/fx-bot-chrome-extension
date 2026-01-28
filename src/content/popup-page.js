@@ -1,6 +1,6 @@
 // ========================================================================
-// FX Bot v17.2.0 - ポップアップ画面ロジック (CHt20011)
-// 自動売買メインループ（v17.0 ロジック + v16.5 起動方式）
+// FX Bot v17.3 - ポップアップ画面ロジック
+// 自動売買メインループ（エントリー過剰防止・ウィンドウ配置修正）
 // ========================================================================
 
 (function () {
@@ -72,24 +72,27 @@
     };
 
     // ========================================================================
-    // 通貨ペア特定（DOM優先判定・リトライ強化）
+    // 通貨ペア特定（PairIndex優先でウィンドウ配置を確実に）
     // ========================================================================
     const getAssignedPair = async () => {
-        for (let attempt = 0; attempt < 8; attempt++) {
+        // 1. まずPairIndexを使って順番に割り当て（ウィンドウ配置のため）
+        const pending = await Storage.get('fxBot_v16_PendingPairs', []);
+        const idx = await Storage.get('fxBot_v16_PairIndex', 0);
+        if (pending.length > 0 && idx < pending.length) {
+            const pair = pending[idx];
+            await Storage.set('fxBot_v16_PairIndex', idx + 1);
+            console.log(`[FXBot] PairIndex ${idx} → ${pair}`);
+            return pair;
+        }
+
+        // 2. DOM判定（フォールバック）
+        for (let attempt = 0; attempt < 5; attempt++) {
             const body = document.body.innerText;
             if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
             if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
             if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
             if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
-            await sleep(1500);
-        }
-        // フォールバック
-        const pending = await Storage.get('fxBot_v16_PendingPairs', []);
-        const idx = await Storage.get('fxBot_v16_PairIndex', 0);
-        if (idx < pending.length) {
-            const pair = pending[idx];
-            await Storage.set('fxBot_v16_PairIndex', idx + 1);
-            return pair;
+            await sleep(1000);
         }
         return 'USDJPY';
     };
@@ -134,16 +137,19 @@
 
         if (sp !== null && sp > maxSp) return;
 
-        // 2. グローバルロックチェック（即座に判定・設定）
+        // 2. グローバルロックチェック（エントリー過剰防止）
         const now = Date.now();
         const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
 
-        let waitMs = 8000;
-        if (GLOBAL_ORDER_INTERVAL_MS?.min) {
-            waitMs = random(GLOBAL_ORDER_INTERVAL_MS.min, GLOBAL_ORDER_INTERVAL_MS.max);
-        }
+        // 最低待機時間を確保（設定値またはデフォルト8-15秒）
+        const minWait = GLOBAL_ORDER_INTERVAL_MS?.min || 8000;
+        const maxWait = GLOBAL_ORDER_INTERVAL_MS?.max || 15000;
+        const waitMs = random(minWait, maxWait);
 
-        if (now - globalLock < waitMs) return;
+        if (now - globalLock < waitMs) {
+            // ロック中は何もしない
+            return;
+        }
 
         // 3. ロック取得
         isOrdering = true;
@@ -249,7 +255,7 @@
     // ========================================================================
     const init = async () => {
         const currentPair = await getAssignedPair();
-        await liveLog(`[${currentPair}] Window Active (v17.1.0)`);
+        await liveLog(`[${currentPair}] Window Active (v17.3)`);
 
         // 位置調整
         const positions = await Storage.get('fxBot_v16_WindowPositions', []);
