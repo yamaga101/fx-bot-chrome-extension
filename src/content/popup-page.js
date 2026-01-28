@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.8.1 - ポップアップ画面ロジック (CHt20011)
+// FX Bot v16.8.2 - ポップアップ画面ロジック (CHt20011)
 // 自動売買メインループ
 // ========================================================================
 
@@ -93,15 +93,19 @@
     // 通貨ペア特定
     // ========================================================================
     const getAssignedPair = async () => {
-        // 優先: 画面テキストから判定（手動起動対応）
-        // タイトルや通貨ペア表示エリアを探して判定する
-        const body = document.body.innerText;
-        if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
-        if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
-        if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
-        if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
+        // 画面のテキストが出るまでリトライ（手動起動時はラグがあるため）
+        for (let attempt = 0; attempt < 10; attempt++) {
+            const body = document.body.innerText;
+            if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
+            if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
+            if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
+            if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
 
-        // フォールバック: 自動割り当てキュー（後方互換性）
+            console.log(`FX Bot: Waiting for currency text... (${attempt + 1}/10)`);
+            await sleep(1000);
+        }
+
+        // フォールバック: 自動割り当てキュー
         const pending = await Storage.get('fxBot_v16_PendingPairs', []);
         const idx = await Storage.get('fxBot_v16_PairIndex', 0);
         if (idx < pending.length) {
@@ -110,7 +114,7 @@
             return pair;
         }
 
-        return 'USDJPY'; // デフォルト
+        return 'USDJPY';
     };
 
     // ========================================================================
