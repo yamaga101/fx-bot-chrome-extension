@@ -36,6 +36,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         checkForUpdate().then(sendResponse);
         return true; // 非同期レスポンス
     }
+
+    if (message.action === 'launchWindow') {
+        const { url, x, y, width, height } = message.data;
+        chrome.windows.create({
+            url: url,
+            left: Math.round(x),
+            top: Math.round(y),
+            width: Math.round(width),
+            height: Math.round(height),
+            type: 'popup',
+            focused: false
+        });
+        sendResponse({ status: 'ok' });
+    }
 });
 
 // 更新チェック（GitHub Releases API）

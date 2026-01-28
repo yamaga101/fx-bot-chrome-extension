@@ -245,40 +245,47 @@
         setInterval(loadDynamicSettings, 2000);
 
         setInterval(async () => {
+            // 1. 実行中チェック
+            const running = await Storage.get(KEYS.RUNNING, false);
+            if (!running) return;
+
+            // 2. 状態取得 (UIから数値を取得)
             const sp = getNum(SELECTORS.SPREAD);
             const qL = getNum(SELECTORS.BUY_POS_QTY) || 0;
             const qS = getNum(SELECTORS.SELL_POS_QTY) || 0;
             const plL = getNum(SELECTORS.PL_YEN_BUY) || 0;
             const plS = getNum(SELECTORS.PL_YEN_SELL) || 0;
 
-            // UI更新用データ保存
-            if (sp !== null) {
-                await Storage.set(`fxBot_v16_UI_${currentPair}`, { sp, qL, qS, plL, plS });
-            }
-
-            // 実行判定
-            const running = await Storage.get(KEYS.RUNNING, false);
-            if (!running) return;
             if (sp === null) return;
             if (isOrdering) return;
 
-            // 決済判定
+            // 3. UI更新用データ保存 (メインパネル用)
+            await Storage.set(`fxBot_v16_UI_${currentPair}`, { sp, qL, qS, plL, plS });
+
+            // 4. 決済判定 (ポジションがなくなった瞬間にステップを更新)
             const prevL = await getPairCfg(currentPair, 'PREV_QL', 0);
             const prevS = await getPairCfg(currentPair, 'PREV_QS', 0);
 
-            if (prevL > 0 && qL === 0) await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_L', 0), 'Long');
-            if (prevS > 0 && qS === 0) await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_S', 0), 'Short');
+            if (prevL > 0 && qL === 0) {
+                await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_L', 0), 'Long');
+                await sleep(1000); // 判定後のバッファ
+            }
+            if (prevS > 0 && qS === 0) {
+                await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_S', 0), 'Short');
+                await sleep(1000);
+            }
 
-            // 状態更新
+            // 5. 現在の状態を保存
             if (qL > 0) await setPairCfg(currentPair, 'LAST_PL_L', plL);
             if (qS > 0) await setPairCfg(currentPair, 'LAST_PL_S', plS);
             await setPairCfg(currentPair, 'PREV_QL', qL);
             await setPairCfg(currentPair, 'PREV_QS', qS);
 
-            // エントリー判定（entry関数内部で詳細なロック・クールダウンチェックを行う）
+            // 6. エントリー判定（entry関数内部で詳細なロック・クールダウンチェックを行う）
             if (qL === 0 && qS === 0) {
+                // 両建てを目指すが、同時に呼ぶと競合するため片方ずつ呼び、それぞれ完了を待つ
                 await entry(currentPair, 'Buy', 'Init_L');
-                await sleep(1000);
+                await sleep(2000); // 状態の反映を待つ
                 await entry(currentPair, 'Sell', 'Init_S');
             } else if (qL > 0 && qS === 0) {
                 await entry(currentPair, 'Sell', 'Hedge_S');
@@ -286,7 +293,7 @@
                 await entry(currentPair, 'Buy', 'Hedge_L');
             }
 
-            // セッション維持
+            // 7. セッション維持
             const closeBtn = document.querySelector('input[value="閉じる"]');
             if (closeBtn) closeBtn.click();
 

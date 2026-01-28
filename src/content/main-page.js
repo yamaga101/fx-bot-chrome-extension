@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.7',
+        VERSION: '16.7.1',
         DEMO_ONLY: true,
     };
 
@@ -264,21 +264,30 @@
 
         await liveLog(`ウィンドウ一括起動を開始...`);
 
-        // 3. 通貨ペアを切り替えながら直接ウィンドウを開く
+        // 3. 通貨ペアを切り替えながらバックグラウンド経由でウィンドウを開く
         for (let i = 0; i < enabledPairs.length; i++) {
             const pair = enabledPairs[i];
             const pos = positions.find(p => p.pair === pair);
 
-            // 直接サーブレットURLを指定して開くことでCSPと起動失敗を回避
-            // gaikaexの標準的なポップアップURL形式を模倣
-            const url = `/servlet/lzca.pc.cht20011.servlet.CHt20011?pairCode=${pair}`;
-            const specs = `width=${WINDOW_CONFIG.width},height=${WINDOW_CONFIG.height},top=${pos.y},left=${pos.x},status=no,resizable=yes,scrollbars=yes`;
+            // 直接サーブレットURLを指定
+            // コンテントスクリプトのwindow.openではなく、背景でchrome.windows.createを使わせる
+            // これによりCSPとポップアップブロッカーを回避
+            const url = `https://vt-fx.gaikaex.com/servlet/lzca.pc.cht20011.servlet.CHt20011?pairCode=${pair}`;
 
-            window.open(url, `fxBotWindow_${pair}`, specs);
+            await chrome.runtime.sendMessage({
+                action: 'launchWindow',
+                data: {
+                    url: url,
+                    x: pos.x,
+                    y: pos.y,
+                    width: WINDOW_CONFIG.width,
+                    height: WINDOW_CONFIG.height
+                }
+            });
 
-            await liveLog(`[${pair}] ウィンドウ起動用URLオープン: ${url}`);
+            await liveLog(`[${pair}] ウィンドウ起動リクエスト送信`);
 
-            // 次のウィンドウまで待機（同時起動を回避）
+            // 次のウィンドウまで待機
             await sleep(2500);
         }
 

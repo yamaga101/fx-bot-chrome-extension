@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "FX Bot v16.2 - デモ専用自動売買",
-    "version": "16.7.0",
+    "version": "16.7.1",
     "description": "FXデモサイト用の4通貨ペア同時対応自動売買ツール（本番使用禁止）",
     "author": "yamaga101",
     "icons": {
