@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.5',
+        VERSION: '16.6',
         DEMO_ONLY: true,
     };
 
@@ -268,9 +268,34 @@
         for (let i = 0; i < enabledPairs.length; i++) {
             const pair = enabledPairs[i];
 
-            // ボタンをクリックしてウィンドウを開く
-            btn.click();
-            await liveLog(`[${pair}] 起動シグナル送信`);
+            // CSP回避: ページコンテキストでクリックを実行する
+            // 拡張機能のContent Scriptから直接 .click() するとCSP違反になる場合があるため
+            // ページ内にscriptタグを注入して実行させる
+            const clickScript = document.createElement('script');
+            clickScript.textContent = `
+                (function() {
+                    const btn = document.querySelector('a[onclick*="_openStream"]') || 
+                                Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('ワンタッチ'));
+                    if (btn) {
+                        btn.click();
+                        console.log('FXBot: Clicked launch button via injected script');
+                    } else {
+                        // iframe内も探す
+                        const iframe = document.querySelector('iframe[name="mainMenu"]');
+                        if (iframe) {
+                            try {
+                                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                                const iBtn = doc.querySelector('a[onclick*="_openStream"]');
+                                if (iBtn) iBtn.click();
+                            } catch(e) {}
+                        }
+                    }
+                })();
+            `;
+            (document.head || document.documentElement).appendChild(clickScript);
+            clickScript.remove();
+
+            await liveLog(`[${pair}] 起動シグナル送信 (Injected)`);
 
             // 次のウィンドウまで待機（同時起動を回避）
             await sleep(2500);

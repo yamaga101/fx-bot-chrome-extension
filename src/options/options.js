@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.5 - オプションページロジック
+// FX Bot v16.6 - オプションページロジック
 // ========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -36,13 +36,10 @@ async function loadSettings() {
         // スプレッド設定
         const spreadInput = document.getElementById(`spread_${pair}`);
         if (spreadInput && settings.maxSpread) {
-            spreadInput.value = settings.maxSpread[pair] || getDefaultSpread(pair);
-        }
-
-        // 遅延設定
-        const delayInput = document.getElementById(`delay_${pair}`);
-        if (delayInput && settings.pairDelays) {
-            delayInput.value = (settings.pairDelays[pair] || 0).toFixed(1);
+            // EURUSDは0.1単位になったので、それ以外と区別せず一律処理でも良いが、念のため小数処理
+            const val = settings.maxSpread[pair] || getDefaultSpread(pair);
+            // 要望：全数値小数点第一位固定
+            spreadInput.value = Number(val).toFixed(1);
         }
     });
 
@@ -79,10 +76,8 @@ async function saveSettings() {
 
     // スプレッド設定の収集
     const maxSpread = {};
-    const pairDelays = {};
     pairs.forEach(pair => {
         maxSpread[pair] = parseFloat(document.getElementById(`spread_${pair}`)?.value) || getDefaultSpread(pair);
-        pairDelays[pair] = parseInt(document.getElementById(`delay_${pair}`)?.value) || 0;
     });
 
     // タイミング設定の保存
@@ -112,11 +107,11 @@ async function saveSettings() {
             parseInt(document.getElementById('betStep2').value) || 2000,
             parseInt(document.getElementById('betStep3').value) || 4000
         ],
-        // 統合された設定を使用（orderCooldownとglobalIntervalの両方に同じレンジ設定を入れる）
+        // 統合された設定を使用
         orderCooldown: commonInterval,
         globalInterval: commonInterval,
         maxSpread,
-        pairDelays,
+        // pairDelays設定は削除
         autoLaunch: document.getElementById('autoLaunch').checked
     };
 
@@ -134,15 +129,9 @@ function getDefaultSettings() {
         globalInterval: { min: 5000, max: 10000 },
         maxSpread: {
             USDJPY: 0.4,
-            EURUSD: 0.00005,
+            EURUSD: 0.5, // 0.00005 -> 0.5 (pips単位に合わせるためと思われるが、要望通り0.5とする)
             AUDJPY: 0.7,
             GBPJPY: 1.0
-        },
-        pairDelays: {
-            USDJPY: 0,
-            EURUSD: 10,
-            AUDJPY: 20,
-            GBPJPY: 30
         },
         autoLaunch: true
     };
@@ -150,7 +139,7 @@ function getDefaultSettings() {
 
 // 通貨ペアごとのデフォルトスプレッド
 function getDefaultSpread(pair) {
-    const map = { USDJPY: 0.4, EURUSD: 0.00005, AUDJPY: 0.7, GBPJPY: 1.0 };
+    const map = { USDJPY: 0.4, EURUSD: 0.5, AUDJPY: 0.7, GBPJPY: 1.0 };
     return map[pair] || 0.5;
 }
 
