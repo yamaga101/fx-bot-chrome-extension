@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v17.0.0 - ポップアップ画面ロジック (CHt20011)
+// FX Bot v17.1.0 - ポップアップ画面ロジック (CHt20011)
 // 自動売買メインループ（安定起動版 互換）
 // ========================================================================
 
@@ -249,7 +249,7 @@
     // ========================================================================
     const init = async () => {
         const currentPair = await getAssignedPair();
-        await liveLog(`[${currentPair}] Window Active (v17.0.0)`);
+        await liveLog(`[${currentPair}] Window Active (v17.1.0)`);
 
         // 位置調整
         const positions = await Storage.get('fxBot_v16_WindowPositions', []);
