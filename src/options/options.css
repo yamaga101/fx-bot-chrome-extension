@@ -302,10 +302,30 @@ h3 {
     cursor: pointer;
     transition: all 0.2s;
 
+    .btn-primary {
+        background: #4dabf7;
+        color: #fff;
+        border: none;
+    }
+
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
     .btn-danger {
         background: rgba(255, 107, 107, 0.2);
         color: #ff6b6b;
         border: 1px solid rgba(255, 107, 107, 0.3);
+    }
+
+    .btn-primary:hover {
+        background: #339af0;
+    }
+
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
     }
 
     .btn-danger:hover {
@@ -346,21 +366,23 @@ h3 {
         background: rgba(255, 107, 107, 0.1);
         border-radius: 8px;
         border: 1px solid rgba(255, 107, 107, 0.2);
+        margin-top: 20px;
     }
 
     /* トースト通知 */
     .toast {
         position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 14px 24px;
+        bottom: 30px;
+        right: 30px;
+        padding: 16px 28px;
         background: #20c997;
         color: #fff;
-        border-radius: 8px;
-        font-weight: 500;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        animation: slideIn 0.3s ease;
-        z-index: 9999;
+        border-radius: 12px;
+        font-weight: bold;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        z-index: 10000;
+        border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .toast.error {
@@ -370,11 +392,11 @@ h3 {
     @keyframes slideIn {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px) scale(0.9);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1.0);
         }
     }
