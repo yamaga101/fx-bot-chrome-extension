@@ -134,6 +134,45 @@ header h1 {
     accent-color: #20c997;
 }
 
+/* フォーム（拡張） */
+.form-group-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-group-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.form-group-mini {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group-mini label {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.form-group-mini input {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    padding: 6px 8px !important;
+    border-radius: 4px !important;
+    font-size: 13px !important;
+}
+
+h3 {
+    font-size: 14px;
+    color: #4dabf7;
+    margin: 20px 0 10px 0;
+    font-weight: 600;
+}
+
 /* ボタン */
 .actions {
     display: flex;

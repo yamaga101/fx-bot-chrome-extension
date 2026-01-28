@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.2 - オプションページロジック
+// FX Bot v16.3 - オプションページロジック
 // ========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -29,9 +29,20 @@ async function loadSettings() {
     // 通貨ペア
     const pairs = ['USDJPY', 'EURUSD', 'AUDJPY', 'GBPJPY'];
     pairs.forEach(pair => {
+        // 有効無効
         const checkbox = document.getElementById(`pair_${pair}`);
-        if (checkbox) {
-            checkbox.checked = settings.enabledPairs?.includes(pair) ?? true;
+        if (checkbox) checkbox.checked = settings.enabledPairs?.includes(pair) ?? true;
+
+        // スプレッド設定
+        const spreadInput = document.getElementById(`spread_${pair}`);
+        if (spreadInput && settings.maxSpread) {
+            spreadInput.value = settings.maxSpread[pair] || getDefaultSpread(pair);
+        }
+
+        // 遅延設定
+        const delayInput = document.getElementById(`delay_${pair}`);
+        if (delayInput && settings.pairDelays) {
+            delayInput.value = settings.pairDelays[pair] || 0;
         }
     });
 
@@ -44,15 +55,22 @@ async function loadSettings() {
 
     // その他
     document.getElementById('orderCooldown').value = (settings.orderCooldown || 10000) / 1000;
+    document.getElementById('globalInterval').value = (settings.globalInterval || 8000) / 1000;
     document.getElementById('autoLaunch').checked = settings.autoLaunch !== false;
 }
 
 // 設定保存
 async function saveSettings() {
     const pairs = ['USDJPY', 'EURUSD', 'AUDJPY', 'GBPJPY'];
-    const enabledPairs = pairs.filter(pair =>
-        document.getElementById(`pair_${pair}`)?.checked
-    );
+    const enabledPairs = pairs.filter(pair => document.getElementById(`pair_${pair}`)?.checked);
+
+    // スプレッド設定の収集
+    const maxSpread = {};
+    const pairDelays = {};
+    pairs.forEach(pair => {
+        maxSpread[pair] = parseFloat(document.getElementById(`spread_${pair}`)?.value) || getDefaultSpread(pair);
+        pairDelays[pair] = parseInt(document.getElementById(`delay_${pair}`)?.value) || 0;
+    });
 
     const settings = {
         enabledPairs,
@@ -61,7 +79,10 @@ async function saveSettings() {
             parseInt(document.getElementById('betStep2').value) || 2000,
             parseInt(document.getElementById('betStep3').value) || 4000
         ],
-        orderCooldown: (parseInt(document.getElementById('orderCooldown').value) || 10) * 1000,
+        orderCooldown: (parseInt(document.getElementById('orderCooldown').value) || 15) * 1000,
+        globalInterval: (parseInt(document.getElementById('globalInterval').value) || 8) * 1000,
+        maxSpread,
+        pairDelays,
         autoLaunch: document.getElementById('autoLaunch').checked
     };
 
@@ -74,9 +95,28 @@ function getDefaultSettings() {
     return {
         enabledPairs: ['USDJPY', 'EURUSD', 'AUDJPY', 'GBPJPY'],
         betSteps: [1000, 2000, 4000],
-        orderCooldown: 10000,
+        orderCooldown: 15000,
+        globalInterval: 8000,
+        maxSpread: {
+            USDJPY: 0.4,
+            EURUSD: 0.00005,
+            AUDJPY: 0.7,
+            GBPJPY: 1.0
+        },
+        pairDelays: {
+            USDJPY: 0,
+            EURUSD: 10,
+            AUDJPY: 20,
+            GBPJPY: 30
+        },
         autoLaunch: true
     };
+}
+
+// 通貨ペアごとのデフォルトスプレッド
+function getDefaultSpread(pair) {
+    const map = { USDJPY: 0.4, EURUSD: 0.00005, AUDJPY: 0.7, GBPJPY: 1.0 };
+    return map[pair] || 0.5;
 }
 
 // エクスポート

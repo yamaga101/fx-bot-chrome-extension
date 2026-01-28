@@ -7,18 +7,16 @@
     'use strict';
 
     // ========================================================================
-    // 設定 & 定数
+    // 設定 & 定数（初期値）
     // ========================================================================
     const BET_STEPS = [1000, 2000, 4000];
     const MONITOR_MS = 200;
-    const ORDER_COOLDOWN_MS = 15000; // クールダウンを15秒に延長
-    const GLOBAL_ORDER_INTERVAL_MS = 8000; // 通貨ペア間のエントリー間隔を8秒に
-    const PAIR_ORDER_DELAY = {  // 通貨ペアごとの遅延（秒）- 十分な間隔を確保
-        USDJPY: 0,
-        EURUSD: 10,
-        AUDJPY: 20,
-        GBPJPY: 30
-    };
+
+    // 動的設定（chrome.storageから読み込み）
+    let ORDER_COOLDOWN_MS = 15000;
+    let GLOBAL_ORDER_INTERVAL_MS = 8000;
+    let PAIR_ORDER_DELAY = { USDJPY: 0, EURUSD: 10, AUDJPY: 20, GBPJPY: 30 };
+    let MAX_SPREAD = { USDJPY: 0.5, EURUSD: 0.0001, AUDJPY: 1.0, GBPJPY: 1.5 };
 
     const CURRENCY_PAIRS = {
         USDJPY: { code: 'USDJPY', name: 'USD/JPY' },
@@ -80,6 +78,17 @@
     const getPairCfg = async (pair, key, def) => await Storage.get(`fxBot_v16_${pair}_${key}`, def);
     const setPairCfg = async (pair, key, val) => await Storage.set(`fxBot_v16_${pair}_${key}`, val);
 
+    // 設定の動的読み込み
+    const loadDynamicSettings = async () => {
+        const { fxBot_settings } = await chrome.storage.local.get('fxBot_settings');
+        if (fxBot_settings) {
+            if (fxBot_settings.orderCooldown) ORDER_COOLDOWN_MS = fxBot_settings.orderCooldown;
+            if (fxBot_settings.globalInterval) GLOBAL_ORDER_INTERVAL_MS = fxBot_settings.globalInterval;
+            if (fxBot_settings.pairDelays) PAIR_ORDER_DELAY = fxBot_settings.pairDelays;
+            if (fxBot_settings.maxSpread) MAX_SPREAD = fxBot_settings.maxSpread;
+        }
+    };
+
     // ========================================================================
     // 通貨ペア特定
     // ========================================================================
@@ -140,6 +149,17 @@
     const entry = async (currentPair, side, reason) => {
         if (isOrdering) return;
 
+        // 設定値リロード（念のため実行直前にも確認）
+        await loadDynamicSettings();
+
+        // スプレッドチェック
+        const currentSpread = getNum(SELECTORS.SPREAD);
+        const maxSpread = MAX_SPREAD[currentPair] || 100;
+        if (currentSpread !== null && currentSpread > maxSpread) {
+            console.log(`[${currentPair}] Skip: High Spread (${currentSpread} > ${maxSpread})`);
+            return;
+        }
+
         // クールダウンチェック
         const lastOrder = await getPairCfg(currentPair, 'LAST_ORDER', 0);
         const now = Date.now();
@@ -182,7 +202,7 @@
                 await sleep(200);
 
                 btn.click();
-                await liveLog(`[${currentPair}] ${side} ${qty} (Step${step})`);
+                await liveLog(`[${currentPair}] ${side} ${qty} (Step${step}) SP:${currentSpread}`);
 
                 // タイムスタンプ更新
                 await setPairCfg(currentPair, `LAST_ORDER`, Date.now());
@@ -217,6 +237,9 @@
     // メインループ
     // ========================================================================
     const startMonitor = (currentPair) => {
+        // 定期的に設定をリロード
+        setInterval(loadDynamicSettings, 2000);
+
         setInterval(async () => {
             const sp = getNum(SELECTORS.SPREAD);
             const qL = getNum(SELECTORS.BUY_POS_QTY) || 0;
@@ -248,7 +271,7 @@
             await setPairCfg(currentPair, 'PREV_QL', qL);
             await setPairCfg(currentPair, 'PREV_QS', qS);
 
-            // クールダウンチェック
+            // クールダウンチェック（動的変数を参照）
             const lastOrder = await getPairCfg(currentPair, 'LAST_ORDER', 0);
             if (Date.now() - lastOrder < ORDER_COOLDOWN_MS) return;
 

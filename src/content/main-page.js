@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.2',
+        VERSION: '16.3',
         DEMO_ONLY: true,
     };
 
@@ -206,7 +206,7 @@
     };
 
     // ========================================================================
-    // ウィンドウ起動ロジック（iframe内ボタン探索版）
+    // ウィンドウ起動ロジック（iframe内ボタン探索・リトライ版）
     // ========================================================================
     const launchOneTouchWindows = async () => {
         const enabledPairs = PAIR_CODES;
@@ -220,41 +220,51 @@
         }));
         await Storage.set('fxBot_v16_WindowPositions', positions);
 
-        // 1. iframe内のメニューからボタンを探す
-        const iframe = document.querySelector('iframe[name="mainMenu"]');
+        await liveLog(`ウィンドウ一括起動を準備中...`);
+
+        // リトライループ（最大30秒待機）
         let btn = null;
-
-        if (iframe) {
-            try {
-                const doc = iframe.contentDocument || iframe.contentWindow.document;
-                btn = doc.querySelector('a[onclick*="_openStream"]');
-            } catch (e) {
-                console.error('iframe access error:', e);
+        for (let attempt = 0; attempt < 15; attempt++) {
+            // 1. iframe内のメニューからボタンを探す
+            const iframe = document.querySelector('iframe[name="mainMenu"]');
+            if (iframe) {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    btn = doc.querySelector('a[onclick*="_openStream"]');
+                } catch (e) {
+                    // クロスオリジンエラー等は無視して次へ
+                }
             }
+
+            // 2. iframeで見つからない場合、メインフレーム内も探す
+            if (!btn) {
+                btn = document.querySelector('a[onclick*="_openStream"]') ||
+                    Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('ワンタッチ'));
+            }
+
+            if (btn) break;
+
+            await liveLog(`起動ボタン探索中... (${attempt + 1}/15)`);
+            await sleep(2000);
         }
 
-        // 2. iframeで見つからない場合、メインフレーム内も探す
         if (!btn) {
-            btn = document.querySelector('a[onclick*="_openStream"]') ||
-                Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('ワンタッチ'));
-        }
-
-        if (!btn) {
-            alert('起動ボタンが見つかりません。画面上の「ワンタッチ注文」ボタンを手動で押してください。');
+            await liveLog(`エラー: 起動ボタンが見つかりませんでした。`);
+            const msgEl = document.getElementById('msgAutoLaunch');
+            if (msgEl) {
+                msgEl.textContent = '自動起動失敗。手動でウィンドウを起動してください。';
+                msgEl.style.color = '#ff6b6b';
+            }
             return;
         }
 
         await liveLog(`ウィンドウ一括起動を開始...`);
 
         // 3. 通貨ペアを切り替えながらボタンをクリック
-        // 注意: CSP回避のため window.open のオーバーライドは行わず、単純クリックで起動のみ行う
-        // ポジショニングはService Workerで行うか、後で手動調整が必要です
-
         for (let i = 0; i < enabledPairs.length; i++) {
             const pair = enabledPairs[i];
 
             // ボタンをクリックしてウィンドウを開く
-            // (サイトの仕様上、引数でペアを指定できない場合は全てUSDJPYで開くため、後で切り替えが必要)
             btn.click();
             await liveLog(`[${pair}] 起動シグナル送信`);
 
