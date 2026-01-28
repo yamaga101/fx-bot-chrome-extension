@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.8.2 - ポップアップ画面ロジック (CHt20011)
+// FX Bot v16.2 - ポップアップ画面ロジック (CHt20011)
 // 自動売買メインループ
 // ========================================================================
 
@@ -93,19 +93,6 @@
     // 通貨ペア特定
     // ========================================================================
     const getAssignedPair = async () => {
-        // 画面のテキストが出るまでリトライ（手動起動時はラグがあるため）
-        for (let attempt = 0; attempt < 10; attempt++) {
-            const body = document.body.innerText;
-            if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
-            if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
-            if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
-            if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
-
-            console.log(`FX Bot: Waiting for currency text... (${attempt + 1}/10)`);
-            await sleep(1000);
-        }
-
-        // フォールバック: 自動割り当てキュー
         const pending = await Storage.get('fxBot_v16_PendingPairs', []);
         const idx = await Storage.get('fxBot_v16_PairIndex', 0);
         if (idx < pending.length) {
@@ -113,7 +100,12 @@
             await Storage.set('fxBot_v16_PairIndex', idx + 1);
             return pair;
         }
-
+        // フォールバック: 画面テキストから判定
+        const body = document.body.innerText;
+        if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
+        if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
+        if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
+        if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
         return 'USDJPY';
     };
 
@@ -161,21 +153,32 @@
         await loadDynamicSettings();
 
         // スプレッドチェック
-        let currentSpread = getNum(SELECTORS.SPREAD);
+        const currentSpread = getNum(SELECTORS.SPREAD);
         const maxSpread = MAX_SPREAD[currentPair] || 100;
-
-        // 要望：EUR/USDも 0.1 単位で扱う
-        // サイト上の表示が「0.00005」の場合、それを 0.5 (pips単位) に換算して判定する
-        if (currentPair === 'EURUSD' && currentSpread !== null && currentSpread < 1.0) {
-            currentSpread = currentSpread * 10000; // 0.00005 -> 0.5
-        }
-
         if (currentSpread !== null && currentSpread > maxSpread) {
-            // スプレッドが高い場合はスキップ（ログはデバッグ時のみ）
+            console.log(`[${currentPair}] Skip: High Spread (${currentSpread} > ${maxSpread})`);
             return;
         }
 
+        // 再エントリー待機チェック（同ペア）
+        const lastOrderTime = await Storage.get(`fxBot_v16_LastOrder_${currentPair}`, 0);
         const now = Date.now();
+
+        // クールダウン時間を計算（レンジ対応）
+        let cooldownMs = 15000;
+        if (typeof ORDER_COOLDOWN_MS === 'number') {
+            cooldownMs = ORDER_COOLDOWN_MS;
+        } else if (ORDER_COOLDOWN_MS && typeof ORDER_COOLDOWN_MS.min === 'number') {
+            const min = ORDER_COOLDOWN_MS.min;
+            const max = ORDER_COOLDOWN_MS.max;
+            cooldownMs = Math.floor(Math.random() * (max - min) + min);
+        }
+
+        if (now - lastOrderTime < cooldownMs) {
+            // ログ過多を防ぐため、スキップ時はログを出さない
+            return;
+        }
+
         // グローバルロックチェック（他の通貨ペアがエントリー中か確認）
         const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
 
@@ -190,11 +193,18 @@
         }
 
         if (now - globalLock < waitMs) {
+            console.log(`[${currentPair}] Skip: Global Lock (Need ${waitMs}ms, Passed ${now - globalLock}ms)`);
             return;
         }
 
+        // 通貨ペアごとの遅延を適用
+        const pairDelay = (PAIR_ORDER_DELAY[currentPair] || 0) * 1000;
+        if (pairDelay > 0) {
+            await sleep(pairDelay);
+        }
+
         isOrdering = true;
-        // グローバルロックを即座に設定して他ペアの割り込みを防ぐ
+        // グローバルロックを設定
         await Storage.set('fxBot_v16_GlobalOrderLock', now);
 
         try {
@@ -253,47 +263,44 @@
         setInterval(loadDynamicSettings, 2000);
 
         setInterval(async () => {
-            // 1. 実行中チェック
-            const running = await Storage.get(KEYS.RUNNING, false);
-            if (!running) return;
-
-            // 2. 状態取得 (UIから数値を取得)
             const sp = getNum(SELECTORS.SPREAD);
             const qL = getNum(SELECTORS.BUY_POS_QTY) || 0;
             const qS = getNum(SELECTORS.SELL_POS_QTY) || 0;
             const plL = getNum(SELECTORS.PL_YEN_BUY) || 0;
             const plS = getNum(SELECTORS.PL_YEN_SELL) || 0;
 
+            // UI更新用データ保存
+            if (sp !== null) {
+                await Storage.set(`fxBot_v16_UI_${currentPair}`, { sp, qL, qS, plL, plS });
+            }
+
+            // 実行判定
+            const running = await Storage.get(KEYS.RUNNING, false);
+            if (!running) return;
             if (sp === null) return;
             if (isOrdering) return;
 
-            // 3. UI更新用データ保存 (メインパネル用)
-            await Storage.set(`fxBot_v16_UI_${currentPair}`, { sp, qL, qS, plL, plS });
-
-            // 4. 決済判定 (ポジションがなくなった瞬間にステップを更新)
+            // 決済判定
             const prevL = await getPairCfg(currentPair, 'PREV_QL', 0);
             const prevS = await getPairCfg(currentPair, 'PREV_QS', 0);
 
-            if (prevL > 0 && qL === 0) {
-                await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_L', 0), 'Long');
-                await sleep(1000); // 判定後のバッファ
-            }
-            if (prevS > 0 && qS === 0) {
-                await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_S', 0), 'Short');
-                await sleep(1000);
-            }
+            if (prevL > 0 && qL === 0) await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_L', 0), 'Long');
+            if (prevS > 0 && qS === 0) await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_S', 0), 'Short');
 
-            // 5. 現在の状態を保存
+            // 状態更新
             if (qL > 0) await setPairCfg(currentPair, 'LAST_PL_L', plL);
             if (qS > 0) await setPairCfg(currentPair, 'LAST_PL_S', plS);
             await setPairCfg(currentPair, 'PREV_QL', qL);
             await setPairCfg(currentPair, 'PREV_QS', qS);
 
-            // 6. エントリー判定（entry関数内部で詳細なロック・クールダウンチェックを行う）
+            // クールダウンチェック（動的変数を参照）
+            const lastOrder = await getPairCfg(currentPair, 'LAST_ORDER', 0);
+            if (Date.now() - lastOrder < ORDER_COOLDOWN_MS) return;
+
+            // 新規エントリー判定（時間差をつけて同時注文を回避）
             if (qL === 0 && qS === 0) {
-                // 両建てを目指すが、同時に呼ぶと競合するため片方ずつ呼び、それぞれ完了を待つ
                 await entry(currentPair, 'Buy', 'Init_L');
-                await sleep(2000); // 状態の反映を待つ
+                await sleep(5000); // 5秒の間隔で同時注文を回避
                 await entry(currentPair, 'Sell', 'Init_S');
             } else if (qL > 0 && qS === 0) {
                 await entry(currentPair, 'Sell', 'Hedge_S');
@@ -301,7 +308,7 @@
                 await entry(currentPair, 'Buy', 'Hedge_L');
             }
 
-            // 7. セッション維持
+            // セッション維持
             const closeBtn = document.querySelector('input[value="閉じる"]');
             if (closeBtn) closeBtn.click();
 
@@ -323,9 +330,9 @@
             window.resizeTo(350, 500);
         }
 
-        // 通貨ペアUI切替（念のため、判定されたペアに強制的にUIを合わせる）
+        // 通貨ペア切替
+        await sleep(2000);
         await switchPairUI(currentPair);
-        await sleep(1000); // UI反映待ち
 
         // メインループ開始
         startMonitor(currentPair);

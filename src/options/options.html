@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Bot v16.8 - 設定</title>
+    <title>FX Bot v16.5 - 設定</title>
     <link rel="stylesheet" href="options.css">
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>🤖 FX Bot v16.8</h1>
+            <h1>🤖 FX Bot v16.5</h1>
             <p class="subtitle">デモ専用自動売買ツール設定</p>
         </header>
 
@@ -38,7 +38,7 @@
                         <div class="grid-row">
                             <div class="pair-label" style="border-left-color: #fab005;">EUR/USD</div>
                             <div class="center"><input type="checkbox" id="pair_EURUSD" checked></div>
-                            <div><input type="number" id="spread_EURUSD" step="0.1" min="0.0" value="0.5"></div>
+                            <div><input type="number" id="spread_EURUSD" step="0.00001" min="0.0" value="0.00005"></div>
                         </div>
                         <div class="grid-row">
                             <div class="pair-label" style="border-left-color: #ff6b6b;">AUD/JPY</div>
@@ -85,6 +85,27 @@
                             <span>〜</span>
                             <input type="number" id="commonIntervalMax" value="10.0" min="1.0" max="60.0" step="0.1"
                                 placeholder="最大">
+                        </div>
+                    </div>
+
+                    <h3>通貨ペア別エントリー遅延 (秒) <span class="tooltip-icon"
+                            title="通貨ペアごとにエントリータイミングを意図的にずらすための固定遅延時間です。">?</span></h3>
+                    <div class="pair-grid" id="delaySettings">
+                        <div class="form-group-mini">
+                            <label>USD/JPY</label>
+                            <input type="number" id="delay_USDJPY" step="0.1" min="0.0" value="0.0">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>EUR/USD</label>
+                            <input type="number" id="delay_EURUSD" step="0.1" min="0.0" value="10.0">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>AUD/JPY</label>
+                            <input type="number" id="delay_AUDJPY" step="0.1" min="0.0" value="20.0">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>GBP/JPY</label>
+                            <input type="number" id="delay_GBPJPY" step="0.1" min="0.0" value="30.0">
                         </div>
                     </div>
                 </section>

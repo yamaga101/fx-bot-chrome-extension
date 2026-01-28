@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "FX Bot v16.2 - デモ専用自動売買",
-    "version": "16.8.2",
+    "version": "16.5.0",
     "description": "FXデモサイト用の4通貨ペア同時対応自動売買ツール（本番使用禁止）",
     "author": "yamaga101",
     "icons": {
@@ -30,13 +30,13 @@
         },
         {
             "matches": [
-                "https://vt-fx.gaikaex.com/servlet/lzca.pc.cht200*"
+                "https://vt-fx.gaikaex.com/servlet/lzca.pc.cht200.servlet.CHt20011*"
             ],
             "js": [
                 "src/lib/storage.js",
                 "src/content/popup-page.js"
             ],
-            "run_at": "document_start"
+            "run_at": "document_idle"
         }
     ],
     "background": {

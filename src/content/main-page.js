@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.8.2',
+        VERSION: '16.5',
         DEMO_ONLY: true,
     };
 
@@ -206,34 +206,95 @@
     };
 
     // ========================================================================
+    // ウィンドウ起動ロジック（iframe内ボタン探索・リトライ版）
+    // ========================================================================
+    const launchOneTouchWindows = async () => {
+        const enabledPairs = PAIR_CODES;
+        await Storage.set('fxBot_v16_PendingPairs', enabledPairs);
+        await Storage.set('fxBot_v16_PairIndex', 0);
+
+        const positions = enabledPairs.map((pair, i) => ({
+            pair: pair,
+            x: WINDOW_CONFIG.startX + (i % WINDOW_CONFIG.cols) * (WINDOW_CONFIG.width + WINDOW_CONFIG.gapX),
+            y: WINDOW_CONFIG.startY + Math.floor(i / WINDOW_CONFIG.cols) * (WINDOW_CONFIG.height + WINDOW_CONFIG.gapY)
+        }));
+        await Storage.set('fxBot_v16_WindowPositions', positions);
+
+        await liveLog(`ウィンドウ一括起動を準備中...`);
+
+        // リトライループ（最大30秒待機）
+        let btn = null;
+        for (let attempt = 0; attempt < 15; attempt++) {
+            // 1. iframe内のメニューからボタンを探す
+            const iframe = document.querySelector('iframe[name="mainMenu"]');
+            if (iframe) {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    btn = doc.querySelector('a[onclick*="_openStream"]');
+                } catch (e) {
+                    // クロスオリジンエラー等は無視して次へ
+                }
+            }
+
+            // 2. iframeで見つからない場合、メインフレーム内も探す
+            if (!btn) {
+                btn = document.querySelector('a[onclick*="_openStream"]') ||
+                    Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('ワンタッチ'));
+            }
+
+            if (btn) break;
+
+            await liveLog(`起動ボタン探索中... (${attempt + 1}/15)`);
+            await sleep(2000);
+        }
+
+        if (!btn) {
+            await liveLog(`エラー: 起動ボタンが見つかりませんでした。`);
+            const msgEl = document.getElementById('msgAutoLaunch');
+            if (msgEl) {
+                msgEl.textContent = '自動起動失敗。手動でウィンドウを起動してください。';
+                msgEl.style.color = '#ff6b6b';
+            }
+            return;
+        }
+
+        await liveLog(`ウィンドウ一括起動を開始...`);
+
+        // 3. 通貨ペアを切り替えながらボタンをクリック
+        for (let i = 0; i < enabledPairs.length; i++) {
+            const pair = enabledPairs[i];
+
+            // ボタンをクリックしてウィンドウを開く
+            btn.click();
+            await liveLog(`[${pair}] 起動シグナル送信`);
+
+            // 次のウィンドウまで待機（同時起動を回避）
+            await sleep(2500);
+        }
+
+        await liveLog(`全ウィンドウ起動完了`);
+        const msgEl = document.getElementById('msgAutoLaunch');
+        if (msgEl) {
+            msgEl.textContent = 'ウィンドウ起動完了 / 自動売買準備OK';
+            msgEl.style.color = '#20c997';
+        }
+    };
+
+    // ========================================================================
     // 初期化
     // ========================================================================
     const init = async () => {
-        console.log(`FX Bot v${CONFIG.VERSION} - Main Page Logic Loaded`);
+        await createPanel();
 
-        // 自動起動機能は廃止されました (v16.8)
-        // ユーザーの手動操作でウィンドウが開かれるのを待ちます
-
-        await liveLog('自動売買システム待機中... 各通貨ペアのウィンドウを手動で開いてください。');
-
-        // パネルは表示しておく
-        createPanel();
-
-        const msgEl = document.getElementById('msgAutoLaunch');
-        if (msgEl) {
-            msgEl.textContent = '準備完了: 手動でウィンドウを開いてください';
-            msgEl.style.color = '#4dabf7';
-        }
-
-        // 初期化としてロックやペアインデックスをリセットしておく
-        await Storage.set('fxBot_v16_PairIndex', 0);
-        await Storage.set('fxBot_v16_GlobalOrderLock', 0);
+        // 自動起動ロジック
+        setTimeout(async () => {
+            const hasLaunched = await Storage.get(KEYS.HAS_LAUNCHED, false);
+            if (!hasLaunched) {
+                await launchOneTouchWindows();
+                await Storage.set(KEYS.HAS_LAUNCHED, true);
+            }
+        }, 3000);
     };
 
-    // ページロード完了を待って実行
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    init();
 })();
