@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.6',
+        VERSION: '16.7',
         DEMO_ONLY: true,
     };
 
@@ -264,38 +264,19 @@
 
         await liveLog(`ウィンドウ一括起動を開始...`);
 
-        // 3. 通貨ペアを切り替えながらボタンをクリック
+        // 3. 通貨ペアを切り替えながら直接ウィンドウを開く
         for (let i = 0; i < enabledPairs.length; i++) {
             const pair = enabledPairs[i];
+            const pos = positions.find(p => p.pair === pair);
 
-            // CSP回避: ページコンテキストでクリックを実行する
-            // 拡張機能のContent Scriptから直接 .click() するとCSP違反になる場合があるため
-            // ページ内にscriptタグを注入して実行させる
-            const clickScript = document.createElement('script');
-            clickScript.textContent = `
-                (function() {
-                    const btn = document.querySelector('a[onclick*="_openStream"]') || 
-                                Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('ワンタッチ'));
-                    if (btn) {
-                        btn.click();
-                        console.log('FXBot: Clicked launch button via injected script');
-                    } else {
-                        // iframe内も探す
-                        const iframe = document.querySelector('iframe[name="mainMenu"]');
-                        if (iframe) {
-                            try {
-                                const doc = iframe.contentDocument || iframe.contentWindow.document;
-                                const iBtn = doc.querySelector('a[onclick*="_openStream"]');
-                                if (iBtn) iBtn.click();
-                            } catch(e) {}
-                        }
-                    }
-                })();
-            `;
-            (document.head || document.documentElement).appendChild(clickScript);
-            clickScript.remove();
+            // 直接サーブレットURLを指定して開くことでCSPと起動失敗を回避
+            // gaikaexの標準的なポップアップURL形式を模倣
+            const url = `/servlet/lzca.pc.cht20011.servlet.CHt20011?pairCode=${pair}`;
+            const specs = `width=${WINDOW_CONFIG.width},height=${WINDOW_CONFIG.height},top=${pos.y},left=${pos.x},status=no,resizable=yes,scrollbars=yes`;
 
-            await liveLog(`[${pair}] 起動シグナル送信 (Injected)`);
+            window.open(url, `fxBotWindow_${pair}`, specs);
+
+            await liveLog(`[${pair}] ウィンドウ起動用URLオープン: ${url}`);
 
             // 次のウィンドウまで待機（同時起動を回避）
             await sleep(2500);

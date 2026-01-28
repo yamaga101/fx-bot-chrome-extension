@@ -153,32 +153,21 @@
         await loadDynamicSettings();
 
         // スプレッドチェック
-        const currentSpread = getNum(SELECTORS.SPREAD);
+        let currentSpread = getNum(SELECTORS.SPREAD);
         const maxSpread = MAX_SPREAD[currentPair] || 100;
+
+        // 要望：EUR/USDも 0.1 単位で扱う
+        // サイト上の表示が「0.00005」の場合、それを 0.5 (pips単位) に換算して判定する
+        if (currentPair === 'EURUSD' && currentSpread !== null && currentSpread < 1.0) {
+            currentSpread = currentSpread * 10000; // 0.00005 -> 0.5
+        }
+
         if (currentSpread !== null && currentSpread > maxSpread) {
-            console.log(`[${currentPair}] Skip: High Spread (${currentSpread} > ${maxSpread})`);
+            // スプレッドが高い場合はスキップ（ログはデバッグ時のみ）
             return;
         }
 
-        // 再エントリー待機チェック（同ペア）
-        const lastOrderTime = await Storage.get(`fxBot_v16_LastOrder_${currentPair}`, 0);
         const now = Date.now();
-
-        // クールダウン時間を計算（レンジ対応）
-        let cooldownMs = 15000;
-        if (typeof ORDER_COOLDOWN_MS === 'number') {
-            cooldownMs = ORDER_COOLDOWN_MS;
-        } else if (ORDER_COOLDOWN_MS && typeof ORDER_COOLDOWN_MS.min === 'number') {
-            const min = ORDER_COOLDOWN_MS.min;
-            const max = ORDER_COOLDOWN_MS.max;
-            cooldownMs = Math.floor(Math.random() * (max - min) + min);
-        }
-
-        if (now - lastOrderTime < cooldownMs) {
-            // ログ過多を防ぐため、スキップ時はログを出さない
-            return;
-        }
-
         // グローバルロックチェック（他の通貨ペアがエントリー中か確認）
         const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
 
@@ -193,18 +182,11 @@
         }
 
         if (now - globalLock < waitMs) {
-            console.log(`[${currentPair}] Skip: Global Lock (Need ${waitMs}ms, Passed ${now - globalLock}ms)`);
             return;
         }
 
-        // 通貨ペアごとの遅延を適用
-        const pairDelay = (PAIR_ORDER_DELAY[currentPair] || 0) * 1000;
-        if (pairDelay > 0) {
-            await sleep(pairDelay);
-        }
-
         isOrdering = true;
-        // グローバルロックを設定
+        // グローバルロックを即座に設定して他ペアの割り込みを防ぐ
         await Storage.set('fxBot_v16_GlobalOrderLock', now);
 
         try {
@@ -293,14 +275,10 @@
             await setPairCfg(currentPair, 'PREV_QL', qL);
             await setPairCfg(currentPair, 'PREV_QS', qS);
 
-            // クールダウンチェック（動的変数を参照）
-            const lastOrder = await getPairCfg(currentPair, 'LAST_ORDER', 0);
-            if (Date.now() - lastOrder < ORDER_COOLDOWN_MS) return;
-
-            // 新規エントリー判定（時間差をつけて同時注文を回避）
+            // エントリー判定（entry関数内部で詳細なロック・クールダウンチェックを行う）
             if (qL === 0 && qS === 0) {
                 await entry(currentPair, 'Buy', 'Init_L');
-                await sleep(5000); // 5秒の間隔で同時注文を回避
+                await sleep(1000);
                 await entry(currentPair, 'Sell', 'Init_S');
             } else if (qL > 0 && qS === 0) {
                 await entry(currentPair, 'Sell', 'Hedge_S');
