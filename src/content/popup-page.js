@@ -1,6 +1,6 @@
 // ========================================================================
-// FX Bot v16.2 - ポップアップ画面ロジック (CHt20011)
-// 自動売買メインループ
+// FX Bot v17.0.0 - ポップアップ画面ロジック (CHt20011)
+// 自動売買メインループ（安定起動版 互換）
 // ========================================================================
 
 (function () {
@@ -10,20 +10,12 @@
     // 設定 & 定数（初期値）
     // ========================================================================
     const BET_STEPS = [1000, 2000, 4000];
-    const MONITOR_MS = 200;
+    const MONITOR_MS = 250; // 少し余裕を持たせる
 
-    // 動的設定（chrome.storageから読み込み）
-    let ORDER_COOLDOWN_MS = { min: 5000, max: 10000 };
-    let GLOBAL_ORDER_INTERVAL_MS = { min: 5000, max: 10000 };
-    let PAIR_ORDER_DELAY = { USDJPY: 0, EURUSD: 10, AUDJPY: 20, GBPJPY: 30 };
-    let MAX_SPREAD = { USDJPY: 0.5, EURUSD: 0.0001, AUDJPY: 1.0, GBPJPY: 1.5 };
-
-    const CURRENCY_PAIRS = {
-        USDJPY: { code: 'USDJPY', name: 'USD/JPY' },
-        EURUSD: { code: 'EURUSD', name: 'EUR/USD' },
-        AUDJPY: { code: 'AUDJPY', name: 'AUD/JPY' },
-        GBPJPY: { code: 'GBPJPY', name: 'GBP/JPY' }
-    };
+    // 動的設定
+    let ORDER_COOLDOWN_MS = { min: 10000, max: 20000 };
+    let GLOBAL_ORDER_INTERVAL_MS = { min: 8000, max: 15000 };
+    let MAX_SPREAD = { USDJPY: 0.5, EURUSD: 0.5, AUDJPY: 1.0, GBPJPY: 1.5 };
 
     const SELECTORS = {
         SELL_BTN: 'btn-sell',
@@ -33,9 +25,7 @@
         SELL_POS_QTY: 'sellPositionAmount',
         BUY_POS_QTY: 'buyPositionAmount',
         PL_YEN_BUY: 'buyUnrealized',
-        PL_YEN_SELL: 'sellUnrealized',
-        BID_RATE: 'btn-sell',
-        ASK_RATE: 'btn-buy',
+        PL_YEN_SELL: 'sellUnrealized'
     };
 
     const KEYS = {
@@ -57,11 +47,6 @@
         return val ? parseFloat(val.match(/-?\d+(\.\d+)?/)?.[0] || 0) : null;
     };
 
-    const getRate = (id) => {
-        const el = document.getElementById(id);
-        return el ? parseFloat((el.innerText || '').replace(/,/g, '').match(/\d+\.\d+/)?.[0] || 0) : null;
-    };
-
     const getDT = () => {
         const d = new Date();
         const pad = n => (n < 10 ? '0' : '') + n;
@@ -74,25 +59,31 @@
         await Storage.set(KEYS.LIVE_LOG, str);
     };
 
-    // ペア固有の設定取得/保存
     const getPairCfg = async (pair, key, def) => await Storage.get(`fxBot_v16_${pair}_${key}`, def);
     const setPairCfg = async (pair, key, val) => await Storage.set(`fxBot_v16_${pair}_${key}`, val);
 
-    // 設定の動的読み込み
     const loadDynamicSettings = async () => {
         const { fxBot_settings } = await chrome.storage.local.get('fxBot_settings');
         if (fxBot_settings) {
             if (fxBot_settings.orderCooldown) ORDER_COOLDOWN_MS = fxBot_settings.orderCooldown;
             if (fxBot_settings.globalInterval) GLOBAL_ORDER_INTERVAL_MS = fxBot_settings.globalInterval;
-            if (fxBot_settings.pairDelays) PAIR_ORDER_DELAY = fxBot_settings.pairDelays;
             if (fxBot_settings.maxSpread) MAX_SPREAD = fxBot_settings.maxSpread;
         }
     };
 
     // ========================================================================
-    // 通貨ペア特定
+    // 通貨ペア特定（DOM優先判定・リトライ強化）
     // ========================================================================
     const getAssignedPair = async () => {
+        for (let attempt = 0; attempt < 8; attempt++) {
+            const body = document.body.innerText;
+            if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
+            if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
+            if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
+            if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
+            await sleep(1500);
+        }
+        // フォールバック
         const pending = await Storage.get('fxBot_v16_PendingPairs', []);
         const idx = await Storage.get('fxBot_v16_PairIndex', 0);
         if (idx < pending.length) {
@@ -100,27 +91,12 @@
             await Storage.set('fxBot_v16_PairIndex', idx + 1);
             return pair;
         }
-        // フォールバック: 画面テキストから判定
-        const body = document.body.innerText;
-        if (body.includes('米ドル/円') || body.includes('USD/JPY')) return 'USDJPY';
-        if (body.includes('ユーロ/ドル') || body.includes('EUR/USD')) return 'EURUSD';
-        if (body.includes('豪ドル/円') || body.includes('AUD/JPY')) return 'AUDJPY';
-        if (body.includes('ポンド/円') || body.includes('GBP/JPY')) return 'GBPJPY';
         return 'USDJPY';
     };
 
-    // ========================================================================
-    // 通貨ペアUI切替
-    // ========================================================================
     const switchPairUI = async (currentPair) => {
-        const JP_NAMES = {
-            'USDJPY': ['ドル/円'],
-            'EURUSD': ['ユーロ/ドル'],
-            'AUDJPY': ['豪ドル/円'],
-            'GBPJPY': ['ポンド/円']
-        };
+        const JP_NAMES = { 'USDJPY': ['ドル/円'], 'EURUSD': ['ユーロ/ドル'], 'AUDJPY': ['豪ドル/円'], 'GBPJPY': ['ポンド/円'] };
         const targets = JP_NAMES[currentPair] || [currentPair];
-
         const selects = document.querySelectorAll('select');
         let switched = false;
         for (const sel of selects) {
@@ -128,15 +104,14 @@
                 if (targets.some(t => opt.text.includes(t))) {
                     sel.value = opt.value;
                     sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    switched = true;
-                    break;
+                    switched = true; break;
                 }
             }
             if (switched) break;
         }
         if (!switched) {
             document.querySelectorAll('a,span,div').forEach(el => {
-                if (targets.some(t => el.innerText.includes(t))) el.click();
+                if (targets.some(t => el.innerText && el.innerText.includes(t))) el.click();
             });
         }
     };
@@ -149,88 +124,47 @@
     const entry = async (currentPair, side, reason) => {
         if (isOrdering) return;
 
-        // 設定値リロード（念のため実行直前にも確認）
+        // 最新設定リロード
         await loadDynamicSettings();
 
-        // スプレッドチェック
-        const currentSpread = getNum(SELECTORS.SPREAD);
-        const maxSpread = MAX_SPREAD[currentPair] || 100;
-        if (currentSpread !== null && currentSpread > maxSpread) {
-            console.log(`[${currentPair}] Skip: High Spread (${currentSpread} > ${maxSpread})`);
-            return;
-        }
+        // 1. スプレッドチェック (EURUSD対応 0.00005 -> 0.5)
+        let sp = getNum(SELECTORS.SPREAD);
+        const maxSp = MAX_SPREAD[currentPair] || 1.0;
+        if (currentPair === 'EURUSD' && sp !== null && sp < 1.0) sp = sp * 10000;
 
-        // 再エントリー待機チェック（同ペア）
-        const lastOrderTime = await Storage.get(`fxBot_v16_LastOrder_${currentPair}`, 0);
+        if (sp !== null && sp > maxSp) return;
+
+        // 2. グローバルロックチェック（即座に判定・設定）
         const now = Date.now();
-
-        // クールダウン時間を計算（レンジ対応）
-        let cooldownMs = 15000;
-        if (typeof ORDER_COOLDOWN_MS === 'number') {
-            cooldownMs = ORDER_COOLDOWN_MS;
-        } else if (ORDER_COOLDOWN_MS && typeof ORDER_COOLDOWN_MS.min === 'number') {
-            const min = ORDER_COOLDOWN_MS.min;
-            const max = ORDER_COOLDOWN_MS.max;
-            cooldownMs = Math.floor(Math.random() * (max - min) + min);
-        }
-
-        if (now - lastOrderTime < cooldownMs) {
-            // ログ過多を防ぐため、スキップ時はログを出さない
-            return;
-        }
-
-        // グローバルロックチェック（他の通貨ペアがエントリー中か確認）
         const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
 
-        // ランダム間隔を計算 (レンジ対応)
         let waitMs = 8000;
-        if (typeof GLOBAL_ORDER_INTERVAL_MS === 'number') {
-            waitMs = GLOBAL_ORDER_INTERVAL_MS;
-        } else if (GLOBAL_ORDER_INTERVAL_MS && typeof GLOBAL_ORDER_INTERVAL_MS.min === 'number') {
-            const min = GLOBAL_ORDER_INTERVAL_MS.min;
-            const max = GLOBAL_ORDER_INTERVAL_MS.max;
-            waitMs = Math.floor(Math.random() * (max - min) + min);
+        if (GLOBAL_ORDER_INTERVAL_MS?.min) {
+            waitMs = random(GLOBAL_ORDER_INTERVAL_MS.min, GLOBAL_ORDER_INTERVAL_MS.max);
         }
 
-        if (now - globalLock < waitMs) {
-            console.log(`[${currentPair}] Skip: Global Lock (Need ${waitMs}ms, Passed ${now - globalLock}ms)`);
-            return;
-        }
+        if (now - globalLock < waitMs) return;
 
-        // 通貨ペアごとの遅延を適用
-        const pairDelay = (PAIR_ORDER_DELAY[currentPair] || 0) * 1000;
-        if (pairDelay > 0) {
-            await sleep(pairDelay);
-        }
-
+        // 3. ロック取得
         isOrdering = true;
-        // グローバルロックを設定
         await Storage.set('fxBot_v16_GlobalOrderLock', now);
 
         try {
-            // ランダム遅延（隠密）
-            const stMin = 1.0, stMax = 3.0;
-            await sleep(random(stMin * 1000, stMax * 1000));
+            await sleep(random(1000, 3000)); // ステルス待機
 
             const step = await getPairCfg(currentPair, `STEP_${side === 'Buy' ? 'L' : 'S'}`, 1);
             const qty = BET_STEPS[step - 1] || 1000;
-
             const input = document.getElementById(SELECTORS.QTY_INPUT);
             const btn = document.getElementById(side === 'Buy' ? SELECTORS.BUY_BTN : SELECTORS.SELL_BTN);
 
             if (input && btn) {
                 input.value = qty;
                 input.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(200);
-
+                await sleep(300);
                 btn.click();
-                await liveLog(`[${currentPair}] ${side} ${qty} (Step${step}) SP:${currentSpread}`);
-
-                // タイムスタンプ更新
+                await liveLog(`[${currentPair}] ${side} ${qty} (Step${step}) SP:${sp?.toFixed(1)}`);
                 await setPairCfg(currentPair, `LAST_ORDER`, Date.now());
-
-                // UI反映待ち
-                await sleep(5000);
+                await sleep(5000); // UI反映待ち
             }
         } catch (e) {
             console.error(e);
@@ -244,63 +178,58 @@
         const isWin = pl > 0;
         const keyStep = `STEP_${side === 'Long' ? 'L' : 'S'}`;
         let step = await getPairCfg(currentPair, keyStep, 1);
-
         if (isWin) {
             step = (step >= BET_STEPS.length) ? 1 : step + 1;
         } else {
             step = 1;
         }
-
         await setPairCfg(currentPair, keyStep, step);
-        await liveLog(`[${currentPair}] ${isWin ? 'Win' : 'Loss'} ${pl}円 → Step${step}`);
+        await liveLog(`[${currentPair}] ${isWin ? 'Win' : 'Loss'} ${pl.toFixed(1)}円 → Step${step}`);
     };
 
     // ========================================================================
     // メインループ
     // ========================================================================
     const startMonitor = (currentPair) => {
-        // 定期的に設定をリロード
-        setInterval(loadDynamicSettings, 2000);
-
         setInterval(async () => {
+            const running = await Storage.get(KEYS.RUNNING, false);
+            if (!running) return;
+
             const sp = getNum(SELECTORS.SPREAD);
             const qL = getNum(SELECTORS.BUY_POS_QTY) || 0;
             const qS = getNum(SELECTORS.SELL_POS_QTY) || 0;
             const plL = getNum(SELECTORS.PL_YEN_BUY) || 0;
             const plS = getNum(SELECTORS.PL_YEN_SELL) || 0;
 
-            // UI更新用データ保存
-            if (sp !== null) {
-                await Storage.set(`fxBot_v16_UI_${currentPair}`, { sp, qL, qS, plL, plS });
-            }
+            if (sp === null || isOrdering) return;
 
-            // 実行判定
-            const running = await Storage.get(KEYS.RUNNING, false);
-            if (!running) return;
-            if (sp === null) return;
-            if (isOrdering) return;
+            // UI更新
+            const displaySp = (currentPair === 'EURUSD' && sp < 1.0) ? (sp * 10000) : sp;
+            await Storage.set(`fxBot_v16_UI_${currentPair}`, { sp: displaySp.toFixed(1), qL, qS, plL, plS });
 
             // 決済判定
             const prevL = await getPairCfg(currentPair, 'PREV_QL', 0);
             const prevS = await getPairCfg(currentPair, 'PREV_QS', 0);
 
-            if (prevL > 0 && qL === 0) await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_L', 0), 'Long');
-            if (prevS > 0 && qS === 0) await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_S', 0), 'Short');
+            if (prevL > 0 && qL === 0) {
+                await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_L', 0), 'Long');
+                await sleep(1000);
+            }
+            if (prevS > 0 && qS === 0) {
+                await judge(currentPair, await getPairCfg(currentPair, 'LAST_PL_S', 0), 'Short');
+                await sleep(1000);
+            }
 
-            // 状態更新
+            // キャッシュ
             if (qL > 0) await setPairCfg(currentPair, 'LAST_PL_L', plL);
             if (qS > 0) await setPairCfg(currentPair, 'LAST_PL_S', plS);
             await setPairCfg(currentPair, 'PREV_QL', qL);
             await setPairCfg(currentPair, 'PREV_QS', qS);
 
-            // クールダウンチェック（動的変数を参照）
-            const lastOrder = await getPairCfg(currentPair, 'LAST_ORDER', 0);
-            if (Date.now() - lastOrder < ORDER_COOLDOWN_MS) return;
-
-            // 新規エントリー判定（時間差をつけて同時注文を回避）
+            // エントリー判定
             if (qL === 0 && qS === 0) {
                 await entry(currentPair, 'Buy', 'Init_L');
-                await sleep(5000); // 5秒の間隔で同時注文を回避
+                await sleep(2500);
                 await entry(currentPair, 'Sell', 'Init_S');
             } else if (qL > 0 && qS === 0) {
                 await entry(currentPair, 'Sell', 'Hedge_S');
@@ -320,21 +249,18 @@
     // ========================================================================
     const init = async () => {
         const currentPair = await getAssignedPair();
-        await liveLog(`[${currentPair}] Window Ready`);
+        await liveLog(`[${currentPair}] Window Active (v17.0.0)`);
 
-        // ウィンドウ位置調整
+        // 位置調整
         const positions = await Storage.get('fxBot_v16_WindowPositions', []);
         const myPos = positions.find(p => p.pair === currentPair);
         if (myPos) {
             window.moveTo(myPos.x, myPos.y);
-            window.resizeTo(350, 500);
+            window.resizeTo(350, 520);
         }
 
-        // 通貨ペア切替
         await sleep(2000);
         await switchPairUI(currentPair);
-
-        // メインループ開始
         startMonitor(currentPair);
     };
 
