@@ -14,7 +14,7 @@
 
     // 動的設定（chrome.storageから読み込み）
     let ORDER_COOLDOWN_MS = 15000;
-    let GLOBAL_ORDER_INTERVAL_MS = 8000;
+    let GLOBAL_ORDER_INTERVAL_MS = { min: 5000, max: 10000 };
     let PAIR_ORDER_DELAY = { USDJPY: 0, EURUSD: 10, AUDJPY: 20, GBPJPY: 30 };
     let MAX_SPREAD = { USDJPY: 0.5, EURUSD: 0.0001, AUDJPY: 1.0, GBPJPY: 1.5 };
 
@@ -170,8 +170,21 @@
 
         // グローバルロックチェック（他の通貨ペアがエントリー中か確認）
         const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
-        if (now - globalLock < GLOBAL_ORDER_INTERVAL_MS) {
-            console.log(`[${currentPair}] Skip: Global Lock`);
+
+        // ランダム間隔を計算 (小数点第3位まで)
+        // GLOBAL_ORDER_INTERVAL_MS がオブジェクト {min, max} か数値かで分岐
+        let waitMs = 8000;
+        if (typeof GLOBAL_ORDER_INTERVAL_MS === 'number') {
+            waitMs = GLOBAL_ORDER_INTERVAL_MS;
+        } else if (GLOBAL_ORDER_INTERVAL_MS && typeof GLOBAL_ORDER_INTERVAL_MS.min === 'number') {
+            // min〜maxの間でランダム生成
+            const min = GLOBAL_ORDER_INTERVAL_MS.min;
+            const max = GLOBAL_ORDER_INTERVAL_MS.max;
+            waitMs = Math.floor(Math.random() * (max - min) + min);
+        }
+
+        if (now - globalLock < waitMs) {
+            console.log(`[${currentPair}] Skip: Global Lock (Need ${waitMs}ms, Passed ${now - globalLock}ms)`);
             return;
         }
 
@@ -183,7 +196,7 @@
 
         isOrdering = true;
         // グローバルロックを設定
-        await Storage.set('fxBot_v16_GlobalOrderLock', Date.now());
+        await Storage.set('fxBot_v16_GlobalOrderLock', now);
 
         try {
             // ランダム遅延（隠密）

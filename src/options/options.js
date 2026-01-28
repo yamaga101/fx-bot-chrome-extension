@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.3 - オプションページロジック
+// FX Bot v16.4 - オプションページロジック
 // ========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -54,8 +54,19 @@ async function loadSettings() {
     }
 
     // その他
-    document.getElementById('orderCooldown').value = (settings.orderCooldown || 10000) / 1000;
-    document.getElementById('globalInterval').value = (settings.globalInterval || 8000) / 1000;
+    document.getElementById('orderCooldown').value = (settings.orderCooldown || 15000) / 1000;
+
+    // グローバル待機（レンジ対応）
+    const gInterval = settings.globalInterval || { min: 5000, max: 10000 };
+    // 旧バージョン（数値）からの移行用
+    if (typeof gInterval === 'number') {
+        document.getElementById('globalIntervalMin').value = (gInterval / 1000) * 0.8; // 仮の最小値
+        document.getElementById('globalIntervalMax').value = (gInterval / 1000) * 1.2; // 仮の最大値
+    } else {
+        document.getElementById('globalIntervalMin').value = gInterval.min / 1000;
+        document.getElementById('globalIntervalMax').value = gInterval.max / 1000;
+    }
+
     document.getElementById('autoLaunch').checked = settings.autoLaunch !== false;
 }
 
@@ -79,12 +90,22 @@ async function saveSettings() {
             parseInt(document.getElementById('betStep2').value) || 2000,
             parseInt(document.getElementById('betStep3').value) || 4000
         ],
-        orderCooldown: (parseInt(document.getElementById('orderCooldown').value) || 15) * 1000,
-        globalInterval: (parseInt(document.getElementById('globalInterval').value) || 8) * 1000,
+        orderCooldown: (parseFloat(document.getElementById('orderCooldown').value) || 15) * 1000,
+        globalInterval: {
+            min: (parseFloat(document.getElementById('globalIntervalMin').value) || 5) * 1000,
+            max: (parseFloat(document.getElementById('globalIntervalMax').value) || 10) * 1000
+        },
         maxSpread,
         pairDelays,
         autoLaunch: document.getElementById('autoLaunch').checked
     };
+
+    // バリデーション: 最小値 > 最大値の場合は入れ替え
+    if (settings.globalInterval.min > settings.globalInterval.max) {
+        [settings.globalInterval.min, settings.globalInterval.max] = [settings.globalInterval.max, settings.globalInterval.min];
+        document.getElementById('globalIntervalMin').value = settings.globalInterval.min / 1000;
+        document.getElementById('globalIntervalMax').value = settings.globalInterval.max / 1000;
+    }
 
     await chrome.storage.local.set({ fxBot_settings: settings });
     showToast('設定を保存しました');
@@ -96,7 +117,7 @@ function getDefaultSettings() {
         enabledPairs: ['USDJPY', 'EURUSD', 'AUDJPY', 'GBPJPY'],
         betSteps: [1000, 2000, 4000],
         orderCooldown: 15000,
-        globalInterval: 8000,
+        globalInterval: { min: 5000, max: 10000 },
         maxSpread: {
             USDJPY: 0.4,
             EURUSD: 0.00005,

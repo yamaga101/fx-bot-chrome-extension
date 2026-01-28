@@ -134,6 +134,60 @@ header h1 {
     accent-color: #20c997;
 }
 
+/* ツールチップ */
+.tooltip-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 10px;
+    margin-left: 6px;
+    cursor: help;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.tooltip-icon:hover {
+    background: #4dabf7;
+    border-color: #4dabf7;
+}
+
+.tooltip-icon:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+}
+
+/* 三角矢印 */
+.tooltip-icon:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #111;
+    margin-bottom: -2px;
+    z-index: 1000;
+}
+
 /* フォーム（拡張） */
 .form-group-row {
     display: flex;
