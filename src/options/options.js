@@ -1,5 +1,5 @@
 // ========================================================================
-// FX Bot v16.4 - オプションページロジック
+// FX Bot v16.5 - オプションページロジック
 // ========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -42,7 +42,7 @@ async function loadSettings() {
         // 遅延設定
         const delayInput = document.getElementById(`delay_${pair}`);
         if (delayInput && settings.pairDelays) {
-            delayInput.value = settings.pairDelays[pair] || 0;
+            delayInput.value = (settings.pairDelays[pair] || 0).toFixed(1);
         }
     });
 
@@ -54,18 +54,20 @@ async function loadSettings() {
     }
 
     // その他
-    document.getElementById('orderCooldown').value = (settings.orderCooldown || 15000) / 1000;
-
-    // グローバル待機（レンジ対応）
+    // 旧 orderCooldown は無視し、globalInterval (レンジ) を共通設定として扱う
     const gInterval = settings.globalInterval || { min: 5000, max: 10000 };
-    // 旧バージョン（数値）からの移行用
+    let intervalMin, intervalMax;
+
     if (typeof gInterval === 'number') {
-        document.getElementById('globalIntervalMin').value = (gInterval / 1000) * 0.8; // 仮の最小値
-        document.getElementById('globalIntervalMax').value = (gInterval / 1000) * 1.2; // 仮の最大値
+        // 旧設定からの移行
+        intervalMin = (gInterval / 1000) * 0.8;
+        intervalMax = (gInterval / 1000) * 1.2;
     } else {
-        document.getElementById('globalIntervalMin').value = gInterval.min / 1000;
-        document.getElementById('globalIntervalMax').value = gInterval.max / 1000;
+        intervalMin = gInterval.min / 1000;
+        intervalMax = gInterval.max / 1000;
     }
+    document.getElementById('commonIntervalMin').value = intervalMin.toFixed(1);
+    document.getElementById('commonIntervalMax').value = intervalMax.toFixed(1);
 
     document.getElementById('autoLaunch').checked = settings.autoLaunch !== false;
 }
@@ -83,29 +85,40 @@ async function saveSettings() {
         pairDelays[pair] = parseInt(document.getElementById(`delay_${pair}`)?.value) || 0;
     });
 
+    // タイミング設定の保存
+    // ユーザー要望により「同じペアの待機」と「ペア間の待機」を共通化
+    const commonInterval = {
+        min: (parseFloat(document.getElementById('commonIntervalMin').value) || 5) * 1000,
+        max: (parseFloat(document.getElementById('commonIntervalMax').value) || 10) * 1000
+    };
+
+    // バリデーション: 最小値
+    if (commonInterval.min < 1000) commonInterval.min = 1000;
+    if (commonInterval.max < 1000) commonInterval.max = 1000;
+
+    // バリデーション: 最小 > 最大の場合は入れ替え
+    if (commonInterval.min > commonInterval.max) {
+        [commonInterval.min, commonInterval.max] = [commonInterval.max, commonInterval.min];
+    }
+
+    // UI上の補正
+    document.getElementById('commonIntervalMin').value = (commonInterval.min / 1000).toFixed(1);
+    document.getElementById('commonIntervalMax').value = (commonInterval.max / 1000).toFixed(1);
+
     const settings = {
-        enabledPairs,
+        enabledPairs: pairs.filter(p => document.getElementById(`pair_${p}`)?.checked),
         betSteps: [
             parseInt(document.getElementById('betStep1').value) || 1000,
             parseInt(document.getElementById('betStep2').value) || 2000,
             parseInt(document.getElementById('betStep3').value) || 4000
         ],
-        orderCooldown: (parseFloat(document.getElementById('orderCooldown').value) || 15) * 1000,
-        globalInterval: {
-            min: (parseFloat(document.getElementById('globalIntervalMin').value) || 5) * 1000,
-            max: (parseFloat(document.getElementById('globalIntervalMax').value) || 10) * 1000
-        },
+        // 統合された設定を使用（orderCooldownとglobalIntervalの両方に同じレンジ設定を入れる）
+        orderCooldown: commonInterval,
+        globalInterval: commonInterval,
         maxSpread,
         pairDelays,
         autoLaunch: document.getElementById('autoLaunch').checked
     };
-
-    // バリデーション: 最小値 > 最大値の場合は入れ替え
-    if (settings.globalInterval.min > settings.globalInterval.max) {
-        [settings.globalInterval.min, settings.globalInterval.max] = [settings.globalInterval.max, settings.globalInterval.min];
-        document.getElementById('globalIntervalMin').value = settings.globalInterval.min / 1000;
-        document.getElementById('globalIntervalMax').value = settings.globalInterval.max / 1000;
-    }
 
     await chrome.storage.local.set({ fxBot_settings: settings });
     showToast('設定を保存しました');
@@ -116,7 +129,8 @@ function getDefaultSettings() {
     return {
         enabledPairs: ['USDJPY', 'EURUSD', 'AUDJPY', 'GBPJPY'],
         betSteps: [1000, 2000, 4000],
-        orderCooldown: 15000,
+        // 両方に同じデフォルトレンジを設定
+        orderCooldown: { min: 5000, max: 10000 },
         globalInterval: { min: 5000, max: 10000 },
         maxSpread: {
             USDJPY: 0.4,

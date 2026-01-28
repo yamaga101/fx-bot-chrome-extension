@@ -4,137 +4,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Bot v16.4 - 設定</title>
+    <title>FX Bot v16.5 - 設定</title>
     <link rel="stylesheet" href="options.css">
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>🤖 FX Bot v16.4</h1>
+            <h1>🤖 FX Bot v16.5</h1>
             <p class="subtitle">デモ専用自動売買ツール設定</p>
         </header>
 
         <main>
-            <!-- 通貨ペア設定 -->
-            <section class="card">
-                <h2>📊 通貨ペア設定</h2>
-                <div class="pair-grid" id="pairSettings">
-                    <label class="pair-item">
-                        <input type="checkbox" id="pair_USDJPY" checked>
-                        <span class="pair-name" style="border-color: #4dabf7;">USD/JPY</span>
-                    </label>
-                    <label class="pair-item">
-                        <input type="checkbox" id="pair_EURUSD" checked>
-                        <span class="pair-name" style="border-color: #fab005;">EUR/USD</span>
-                    </label>
-                    <label class="pair-item">
-                        <input type="checkbox" id="pair_AUDJPY" checked>
-                        <span class="pair-name" style="border-color: #ff6b6b;">AUD/JPY</span>
-                    </label>
-                    <label class="pair-item">
-                        <input type="checkbox" id="pair_GBPJPY" checked>
-                        <span class="pair-name" style="border-color: #20c997;">GBP/JPY</span>
-                    </label>
-                </div>
-            </section>
+            <form id="settingsForm">
+                <!-- 通貨ペア & スプレッド設定 -->
+                <section class="card">
+                    <h2>💱 通貨ペア & スプレッド設定</h2>
+                    <p class="desc">使用する通貨ペアと、許容する最大スプレッドを設定します。</p>
 
-            <!-- ベット設定 -->
-            <section class="card">
-                <h2>💰 ベット設定</h2>
-                <div class="form-group">
-                    <label for="betStep1">ステップ1 (通貨)</label>
-                    <input type="number" id="betStep1" value="1000" min="100" step="100">
-                </div>
-                <div class="form-group">
-                    <label for="betStep2">ステップ2 (通貨)</label>
-                    <input type="number" id="betStep2" value="2000" min="100" step="100">
-                </div>
-                <div class="form-group">
-                    <label for="betStep3">ステップ3 (通貨)</label>
-                    <input type="number" id="betStep3" value="4000" min="100" step="100">
-                </div>
-            </section>
+                    <div class="pair-grid-layout">
+                        <!-- Header -->
+                        <div class="grid-header">ペア</div>
+                        <div class="grid-header">有効</div>
+                        <div class="grid-header">最大スプレッド <span class="tooltip-icon"
+                                title="この値（pips/銭）より広いスプレッドではエントリーを見送ります。0.0で制限なし。">?</span></div>
 
-            <!-- タイミング設定 & フィルター -->
-            <section class="card">
-                <h2>⏱️ タイミング & フィルター設定</h2>
+                        <!-- Rows -->
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #4dabf7;">USD/JPY</div>
+                            <div class="center"><input type="checkbox" id="pair_USDJPY" checked></div>
+                            <div><input type="number" id="spread_USDJPY" step="0.1" min="0.0" value="0.4"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #fab005;">EUR/USD</div>
+                            <div class="center"><input type="checkbox" id="pair_EURUSD" checked></div>
+                            <div><input type="number" id="spread_EURUSD" step="0.00001" min="0.0" value="0.00005"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #ff6b6b;">AUD/JPY</div>
+                            <div class="center"><input type="checkbox" id="pair_AUDJPY" checked></div>
+                            <div><input type="number" id="spread_AUDJPY" step="0.1" min="0.0" value="0.7"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #20c997;">GBP/JPY</div>
+                            <div class="center"><input type="checkbox" id="pair_GBPJPY" checked></div>
+                            <div><input type="number" id="spread_GBPJPY" step="0.1" min="0.0" value="1.0"></div>
+                        </div>
+                    </div>
+                </section>
 
-                <div class="form-group-row">
+                <!-- ベット設定 -->
+                <section class="card">
+                    <h2>💰 ベット設定</h2>
+                    <div class="bet-grid">
+                        <div class="form-group-mini">
+                            <label>ステップ1</label>
+                            <input type="number" id="betStep1" value="1000">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>ステップ2</label>
+                            <input type="number" id="betStep2" value="2000">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>ステップ3</label>
+                            <input type="number" id="betStep3" value="4000">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- タイミング設定 -->
+                <section class="card">
+                    <h2>⏱️ 共通タイミング設定</h2>
+
                     <div class="form-group">
-                        <label for="orderCooldown">同じペアの再エントリー待機 (秒)</label>
-                        <input type="number" id="orderCooldown" value="15" min="5" max="300">
-                    </div>
-                    <div class="form-group-row">
-                        <div class="form-group">
-                            <label for="orderCooldown">同じペアの再エントリー待機 (秒) <span class="tooltip-icon"
-                                    title="同じ通貨ペアで連続エントリーするのを防ぐための待機時間です。">?</span></label>
-                            <input type="number" id="orderCooldown" value="15.0" min="5.0" max="300.0" step="0.1">
-                        </div>
-
-                        <div class="form-group">
-                            <label>通貨ペア間のエントリー待機 (秒) <span class="tooltip-icon"
-                                    title="異なる通貨ペア間でエントリーが重ならないようにするための待機時間です。「最小〜最大」の間でランダムに決定されます。">?</span></label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="number" id="globalIntervalMin" value="5.0" min="1.0" max="60.0" step="0.1"
-                                    placeholder="最小">
-                                <span>〜</span>
-                                <input type="number" id="globalIntervalMax" value="10.0" min="1.0" max="60.0" step="0.1"
-                                    placeholder="最大">
-                            </div>
+                        <label>エントリー待機間隔 (秒) <span class="tooltip-icon"
+                                title="エントリー間の待機時間です。「同じペアでの再エントリー」と「ペア間の切り替え」の両方で、この範囲のランダムな時間が適用されます。">?</span></label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" id="commonIntervalMin" value="5.0" min="1.0" max="60.0" step="0.1"
+                                placeholder="最小">
+                            <span>〜</span>
+                            <input type="number" id="commonIntervalMax" value="10.0" min="1.0" max="60.0" step="0.1"
+                                placeholder="最大">
                         </div>
                     </div>
-                </div>
 
-                <h3>スプレッドフィルター (最大許容値) <span class="tooltip-icon"
-                        title="この値（pips/銭）よりスプレッドが広いときはエントリーを見送ります。0.0に設定すると制限なしになります。">?</span></h3>
-                <div class="pair-grid" id="spreadSettings">
-                    <!-- JSで動的生成または固定記述 -->
-                    <div class="form-group-mini">
-                        <label>USD/JPY</label>
-                        <input type="number" id="spread_USDJPY" step="0.1" min="0.0" value="0.4">
+                    <h3>通貨ペア別エントリー遅延 (秒) <span class="tooltip-icon"
+                            title="通貨ペアごとにエントリータイミングを意図的にずらすための固定遅延時間です。">?</span></h3>
+                    <div class="pair-grid" id="delaySettings">
+                        <div class="form-group-mini">
+                            <label>USD/JPY</label>
+                            <input type="number" id="delay_USDJPY" step="0.1" min="0.0" value="0.0">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>EUR/USD</label>
+                            <input type="number" id="delay_EURUSD" step="0.1" min="0.0" value="10.0">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>AUD/JPY</label>
+                            <input type="number" id="delay_AUDJPY" step="0.1" min="0.0" value="20.0">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>GBP/JPY</label>
+                            <input type="number" id="delay_GBPJPY" step="0.1" min="0.0" value="30.0">
+                        </div>
                     </div>
-                    <div class="form-group-mini">
-                        <label>EUR/USD</label>
-                        <input type="number" id="spread_EURUSD" step="0.00001" min="0.0" value="0.00005">
-                    </div>
-                    <div class="form-group-mini">
-                        <label>AUD/JPY</label>
-                        <input type="number" id="spread_AUDJPY" step="0.1" min="0.0" value="0.7">
-                    </div>
-                    <div class="form-group-mini">
-                        <label>GBP/JPY</label>
-                        <input type="number" id="spread_GBPJPY" step="0.1" min="0.0" value="1.0">
-                    </div>
-                </div>
+                </section>
 
-                <h3>通貨ペア別エントリー遅延 (秒) <span class="tooltip-icon" title="通貨ペアごとにエントリータイミングを意図的にずらすための固定遅延時間です。">?</span>
-                </h3>
-                <div class="pair-grid" id="delaySettings">
-                    <div class="form-group-mini">
-                        <label>USD/JPY</label>
-                        <input type="number" id="delay_USDJPY" step="0.1" min="0.0" value="0.0">
-                    </div>
-                    <div class="form-group-mini">
-                        <label>EUR/USD</label>
-                        <input type="number" id="delay_EURUSD" step="0.1" min="0.0" value="10.0">
-                    </div>
-                    <div class="form-group-mini">
-                        <label>AUD/JPY</label>
-                        <input type="number" id="delay_AUDJPY" step="0.1" min="0.0" value="20.0">
-                    </div>
-                    <div class="form-group-mini">
-                        <label>GBP/JPY</label>
-                        <input type="number" id="delay_GBPJPY" step="0.1" min="0.0" value="30.0">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="checkbox-label">
+                <!-- その他 -->
+                <div class="form-group checkbox-group card">
+                    <label for="autoLaunch" style="cursor: pointer; display: flex; align-items: center; width: 100%;">
                         <input type="checkbox" id="autoLaunch" checked>
-                        <span>起動時にウィンドウを自動オープン</span>
+                        <span style="margin-left: 8px;">起動時にウィンドウを自動オープン</span>
                     </label>
                 </div>
-            </section>
+            </form>
 
             <!-- アクションボタン -->
             <div class="actions">

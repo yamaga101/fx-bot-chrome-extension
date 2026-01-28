@@ -13,7 +13,7 @@
     const MONITOR_MS = 200;
 
     // 動的設定（chrome.storageから読み込み）
-    let ORDER_COOLDOWN_MS = 15000;
+    let ORDER_COOLDOWN_MS = { min: 5000, max: 10000 };
     let GLOBAL_ORDER_INTERVAL_MS = { min: 5000, max: 10000 };
     let PAIR_ORDER_DELAY = { USDJPY: 0, EURUSD: 10, AUDJPY: 20, GBPJPY: 30 };
     let MAX_SPREAD = { USDJPY: 0.5, EURUSD: 0.0001, AUDJPY: 1.0, GBPJPY: 1.5 };
@@ -160,24 +160,33 @@
             return;
         }
 
-        // クールダウンチェック
-        const lastOrder = await getPairCfg(currentPair, 'LAST_ORDER', 0);
+        // 再エントリー待機チェック（同ペア）
+        const lastOrderTime = await Storage.get(`fxBot_v16_LastOrder_${currentPair}`, 0);
         const now = Date.now();
-        if (now - lastOrder < ORDER_COOLDOWN_MS) {
-            console.log(`[${currentPair}] Skip: Cooldown`);
+
+        // クールダウン時間を計算（レンジ対応）
+        let cooldownMs = 15000;
+        if (typeof ORDER_COOLDOWN_MS === 'number') {
+            cooldownMs = ORDER_COOLDOWN_MS;
+        } else if (ORDER_COOLDOWN_MS && typeof ORDER_COOLDOWN_MS.min === 'number') {
+            const min = ORDER_COOLDOWN_MS.min;
+            const max = ORDER_COOLDOWN_MS.max;
+            cooldownMs = Math.floor(Math.random() * (max - min) + min);
+        }
+
+        if (now - lastOrderTime < cooldownMs) {
+            // ログ過多を防ぐため、スキップ時はログを出さない
             return;
         }
 
         // グローバルロックチェック（他の通貨ペアがエントリー中か確認）
         const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
 
-        // ランダム間隔を計算 (小数点第3位まで)
-        // GLOBAL_ORDER_INTERVAL_MS がオブジェクト {min, max} か数値かで分岐
+        // ランダム間隔を計算 (レンジ対応)
         let waitMs = 8000;
         if (typeof GLOBAL_ORDER_INTERVAL_MS === 'number') {
             waitMs = GLOBAL_ORDER_INTERVAL_MS;
         } else if (GLOBAL_ORDER_INTERVAL_MS && typeof GLOBAL_ORDER_INTERVAL_MS.min === 'number') {
-            // min〜maxの間でランダム生成
             const min = GLOBAL_ORDER_INTERVAL_MS.min;
             const max = GLOBAL_ORDER_INTERVAL_MS.max;
             waitMs = Math.floor(Math.random() * (max - min) + min);
