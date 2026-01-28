@@ -11,7 +11,14 @@
     // ========================================================================
     const BET_STEPS = [1000, 2000, 4000];
     const MONITOR_MS = 200;
-    const ORDER_COOLDOWN_MS = 10000;
+    const ORDER_COOLDOWN_MS = 15000; // クールダウンを15秒に延長
+    const GLOBAL_ORDER_INTERVAL_MS = 8000; // 通貨ペア間のエントリー間隔を8秒に
+    const PAIR_ORDER_DELAY = {  // 通貨ペアごとの遅延（秒）- 十分な間隔を確保
+        USDJPY: 0,
+        EURUSD: 10,
+        AUDJPY: 20,
+        GBPJPY: 30
+    };
 
     const CURRENCY_PAIRS = {
         USDJPY: { code: 'USDJPY', name: 'USD/JPY' },
@@ -141,7 +148,23 @@
             return;
         }
 
+        // グローバルロックチェック（他の通貨ペアがエントリー中か確認）
+        const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
+        if (now - globalLock < GLOBAL_ORDER_INTERVAL_MS) {
+            console.log(`[${currentPair}] Skip: Global Lock`);
+            return;
+        }
+
+        // 通貨ペアごとの遅延を適用
+        const pairDelay = (PAIR_ORDER_DELAY[currentPair] || 0) * 1000;
+        if (pairDelay > 0) {
+            await sleep(pairDelay);
+        }
+
         isOrdering = true;
+        // グローバルロックを設定
+        await Storage.set('fxBot_v16_GlobalOrderLock', Date.now());
+
         try {
             // ランダム遅延（隠密）
             const stMin = 1.0, stMax = 3.0;
@@ -229,10 +252,10 @@
             const lastOrder = await getPairCfg(currentPair, 'LAST_ORDER', 0);
             if (Date.now() - lastOrder < ORDER_COOLDOWN_MS) return;
 
-            // 新規エントリー判定
+            // 新規エントリー判定（時間差をつけて同時注文を回避）
             if (qL === 0 && qS === 0) {
                 await entry(currentPair, 'Buy', 'Init_L');
-                await sleep(2000);
+                await sleep(5000); // 5秒の間隔で同時注文を回避
                 await entry(currentPair, 'Sell', 'Init_S');
             } else if (qL > 0 && qS === 0) {
                 await entry(currentPair, 'Sell', 'Hedge_S');

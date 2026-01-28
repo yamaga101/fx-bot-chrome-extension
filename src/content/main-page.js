@@ -94,7 +94,9 @@
                 <div style="font-size: 10px; opacity: 0.7;">ウィンドウ準備 → 稼働開始</div>
             </div>
             <div style="padding: 16px;">
-                <div id="msgAutoLaunch" style="font-size: 11px; color: #4dabf7; margin-bottom: 8px; text-align: center;">自動ウィンドウ起動待機中...</div>
+                <div id="msgAutoLaunch" style="font-size: 11px; color: #4dabf7; margin-bottom: 8px; text-align: center;">ウィンドウを起動してください</div>
+
+                <button id="btnLaunchWindows" style="width: 100%; padding: 12px; background: #4dabf7; border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; margin-bottom: 8px;">🚀 ウィンドウ起動</button>
 
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                     <button id="btnStart" style="flex: 1; padding: 12px; background: #20c997; border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer;">▶ 自動売買 ON</button>
@@ -150,6 +152,11 @@
         bStart.onclick = () => toggleRun(true);
         bStop.onclick = () => toggleRun(false);
 
+        // ウィンドウ起動ボタン
+        document.getElementById('btnLaunchWindows').onclick = async () => {
+            await launchOneTouchWindows();
+        };
+
         // 設定ボタン（オプションページを開く）
         document.getElementById('btnOptions').onclick = () => {
             chrome.runtime.sendMessage({ action: 'openOptions' });
@@ -199,7 +206,7 @@
     };
 
     // ========================================================================
-    // ウィンドウ起動ロジック
+    // ウィンドウ起動ロジック（CSP回避版 - 直接URL構築）
     // ========================================================================
     const launchOneTouchWindows = async () => {
         const enabledPairs = PAIR_CODES;
@@ -213,29 +220,32 @@
         }));
         await Storage.set('fxBot_v16_WindowPositions', positions);
 
-        const iframe = document.querySelector('iframe[name="mainMenu"]');
-        if (!iframe) return;
-        const menuWin = iframe.contentWindow;
-        const menuDoc = iframe.contentDocument || menuWin.document;
-        const btn = menuDoc.querySelector('a[onclick*="_openStream"]');
-        if (!btn) return;
+        // ストリーミング注文ページのベースURL
+        const baseUrl = '/servlet/lzca.pc.cht200.servlet.CHt20011';
 
-        const originalOpen = menuWin.open;
-        await liveLog(`ウィンドウ一括起動を自動開始します...`);
+        await liveLog(`ウィンドウ一括起動を開始...`);
 
         for (let i = 0; i < enabledPairs.length; i++) {
             const pair = enabledPairs[i];
             const pos = positions[i];
-            menuWin.open = function (url, name, features) {
-                const forced = `width=${WINDOW_CONFIG.width},height=${WINDOW_CONFIG.height},left=${pos.x},top=${pos.y},resizable=yes,status=no`;
-                return originalOpen.call(menuWin, url, name, forced);
-            };
-            btn.click();
-            await sleep(1500);
-            menuWin.open = originalOpen;
+
+            // ストリーミング注文URLを構築
+            const streamUrl = `${baseUrl}?P004=1&conNum=${i + 1}`;
+            const windowName = `fxBot_stream_${pair}_${Date.now()}`;
+            const features = `width=${WINDOW_CONFIG.width},height=${WINDOW_CONFIG.height},left=${pos.x},top=${pos.y},resizable=yes,scrollbars=yes,status=no`;
+
+            try {
+                window.open(streamUrl, windowName, features);
+                await liveLog(`[${pair}] ウィンドウ起動`);
+            } catch (e) {
+                console.error(`[${pair}] ウィンドウ起動エラー:`, e);
+            }
+
+            // 次のウィンドウまで待機（同時起動を回避）
             await sleep(2000);
         }
-        await liveLog(`起動完了。`);
+
+        await liveLog(`全ウィンドウ起動完了`);
         const msgEl = document.getElementById('msgAutoLaunch');
         if (msgEl) {
             msgEl.textContent = 'ウィンドウ起動完了 / 自動売買準備OK';
