@@ -229,9 +229,13 @@
             const iframe = document.querySelector('iframe[name="mainMenu"]');
             if (iframe) {
                 try {
+                    // クロスオリジン制限や、iframeが読み込み中の場合にアクセスエラーになる可能性があるためtry-catchで囲む
                     const doc = iframe.contentDocument || iframe.contentWindow.document;
-                    btn = doc.querySelector('a[onclick*="_openStream"]');
+                    if (doc) {
+                        btn = doc.querySelector('a[onclick*="_openStream"]');
+                    }
                 } catch (e) {
+                    console.warn('iframe access error (ignored):', e);
                     // クロスオリジンエラー等は無視して次へ
                 }
             }
@@ -288,8 +292,12 @@
 
         // 自動起動ロジック
         setTimeout(async () => {
+            // 設定で自動起動がONになっているか確認
+            const settings = await chrome.storage.local.get('fxBot_settings');
+            const autoLaunchEnabled = settings.fxBot_settings?.autoLaunch !== false; // デフォルトtrue
+
             const hasLaunched = await Storage.get(KEYS.HAS_LAUNCHED, false);
-            if (!hasLaunched) {
+            if (autoLaunchEnabled && !hasLaunched) {
                 await launchOneTouchWindows();
                 await Storage.set(KEYS.HAS_LAUNCHED, true);
             }
