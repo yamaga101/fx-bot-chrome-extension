@@ -192,32 +192,29 @@
         await setPairCfg(currentPair, keyStep, step);
         await liveLog(`[${currentPair}] ${isWin ? 'Win' : 'Loss'} ${pl.toFixed(1)}円 → Step${step}`);
     };
-
     // ========================================================================
     // メインループ
     // ========================================================================
     const startMonitor = (currentPair) => {
         setInterval(async () => {
             const running = await Storage.get(KEYS.RUNNING, false);
-            if (!running) {
-                const maxSp = MAX_SPREAD[currentPair] || 1.0;
-                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status: '停止中', sp: '-', maxSp, qL: 0, qS: 0, plL: 0, plS: 0 });
-                return;
-            }
 
+            // 常にデータを取得（停止中でも表示更新）
             const sp = getNum(SELECTORS.SPREAD);
             const qL = getNum(SELECTORS.BUY_POS_QTY) || 0;
             const qS = getNum(SELECTORS.SELL_POS_QTY) || 0;
             const plL = getNum(SELECTORS.PL_YEN_BUY) || 0;
             const plS = getNum(SELECTORS.PL_YEN_SELL) || 0;
 
-            // スプレッド表示用
-            const displaySp = (currentPair === 'EURUSD' && sp !== null && sp < 1.0) ? (sp * 10000) : sp;
+            // スプレッド表示用（EURUSD: 常に10000倍でpips表示）
+            const displaySp = (currentPair === 'EURUSD' && sp !== null) ? (sp * 10000) : sp;
             const maxSp = MAX_SPREAD[currentPair] || 1.0;
 
             // ステータス判定
             let status = '待機中';
-            if (isOrdering) {
+            if (!running) {
+                status = '停止中';
+            } else if (isOrdering) {
                 status = 'エントリー中';
             } else if (qL > 0 && qS > 0) {
                 status = '両建て保有';
@@ -226,7 +223,6 @@
             } else if (displaySp !== null && displaySp > maxSp) {
                 status = `SP超過 (${displaySp?.toFixed(1)}>${maxSp})`;
             } else {
-                // ロック中かチェック
                 const now = Date.now();
                 const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
                 const minWait = GLOBAL_ORDER_INTERVAL_MS?.min || 8000;
@@ -238,13 +234,16 @@
                 }
             }
 
-            if (sp === null || isOrdering) {
-                await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1) || '-', maxSp, qL, qS, plL, plS });
-                return;
-            }
+            // UI更新（常に実行）
+            await Storage.set(`fxBot_v16_UI_${currentPair}`, {
+                status,
+                sp: displaySp?.toFixed(1) || '-',
+                maxSp,
+                qL, qS, plL, plS
+            });
 
-            // UI更新（maxSpも含める）
-            await Storage.set(`fxBot_v16_UI_${currentPair}`, { status, sp: displaySp?.toFixed(1), maxSp, qL, qS, plL, plS });
+            // 停止中またはオーダー中はエントリーロジックをスキップ
+            if (!running || sp === null || isOrdering) return;
 
             // 決済判定
             const prevL = await getPairCfg(currentPair, 'PREV_QL', 0);
