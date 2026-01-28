@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '16.7.1',
+        VERSION: '16.7.2',
         DEMO_ONLY: true,
     };
 
@@ -206,7 +206,7 @@
     };
 
     // ========================================================================
-    // ウィンドウ起動ロジック（iframe内ボタン探索・リトライ版）
+    // ウィンドウ起動ロジック（inject.js経由・MAINコンテキスト実行）
     // ========================================================================
     const launchOneTouchWindows = async () => {
         const enabledPairs = PAIR_CODES;
@@ -220,78 +220,33 @@
         }));
         await Storage.set('fxBot_v16_WindowPositions', positions);
 
-        await liveLog(`ウィンドウ一括起動を準備中...`);
+        await liveLog(`ウィンドウ一括起動を開始 (Method: Injection)...`);
 
-        // リトライループ（最大30秒待機）
-        let btn = null;
-        for (let attempt = 0; attempt < 15; attempt++) {
-            // 1. iframe内のメニューからボタンを探す
-            const iframe = document.querySelector('iframe[name="mainMenu"]');
-            if (iframe) {
-                try {
-                    // クロスオリジン制限や、iframeが読み込み中の場合にアクセスエラーになる可能性があるためtry-catchで囲む
-                    const doc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (doc) {
-                        btn = doc.querySelector('a[onclick*="_openStream"]');
-                    }
-                } catch (e) {
-                    console.warn('iframe access error (ignored):', e);
-                    // クロスオリジンエラー等は無視して次へ
-                }
-            }
-
-            // 2. iframeで見つからない場合、メインフレーム内も探す
-            if (!btn) {
-                btn = document.querySelector('a[onclick*="_openStream"]') ||
-                    Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('ワンタッチ'));
-            }
-
-            if (btn) break;
-
-            await liveLog(`起動ボタン探索中... (${attempt + 1}/15)`);
-            await sleep(2000);
+        // 1. スクリプト注入 (初回のみ)
+        if (!document.getElementById('fxbot-injector')) {
+            const script = document.createElement('script');
+            script.id = 'fxbot-injector';
+            script.src = chrome.runtime.getURL('src/content/inject.js');
+            script.onload = function () {
+                this.remove();
+            };
+            (document.head || document.documentElement).appendChild(script);
+            await liveLog(`制御スクリプトをページに注入しました`);
+            await sleep(1000); // 読み込み待機
         }
 
-        if (!btn) {
-            await liveLog(`エラー: 起動ボタンが見つかりませんでした。`);
-            const msgEl = document.getElementById('msgAutoLaunch');
-            if (msgEl) {
-                msgEl.textContent = '自動起動失敗。手動でウィンドウを起動してください。';
-                msgEl.style.color = '#ff6b6b';
-            }
-            return;
-        }
-
-        await liveLog(`ウィンドウ一括起動を開始...`);
-
-        // 3. 通貨ペアを切り替えながらバックグラウンド経由でウィンドウを開く
+        // 2. ペアごとにメッセージ送信
         for (let i = 0; i < enabledPairs.length; i++) {
             const pair = enabledPairs[i];
-            const pos = positions.find(p => p.pair === pair);
 
-            // 直接サーブレットURLを指定
-            // コンテントスクリプトのwindow.openではなく、背景でchrome.windows.createを使わせる
-            // これによりCSPとポップアップブロッカーを回避
-            const url = `https://vt-fx.gaikaex.com/servlet/lzca.pc.cht20011.servlet.CHt20011?pairCode=${pair}`;
+            window.postMessage({ type: 'FXBOT_EXEC_CMD', command: 'openWindow', pair: pair }, '*');
+            await liveLog(`[${pair}] 起動リクエスト送信`);
 
-            await chrome.runtime.sendMessage({
-                action: 'launchWindow',
-                data: {
-                    url: url,
-                    x: pos.x,
-                    y: pos.y,
-                    width: WINDOW_CONFIG.width,
-                    height: WINDOW_CONFIG.height
-                }
-            });
-
-            await liveLog(`[${pair}] ウィンドウ起動リクエスト送信`);
-
-            // 次のウィンドウまで待機
-            await sleep(2500);
+            // 次のウィンドウまで待機（セッション混線防止のため長めに）
+            await sleep(3000);
         }
 
-        await liveLog(`全ウィンドウ起動完了`);
+        await liveLog(`全ウィンドウ起動シーケンス完了`);
         const msgEl = document.getElementById('msgAutoLaunch');
         if (msgEl) {
             msgEl.textContent = 'ウィンドウ起動完了 / 自動売買準備OK';
