@@ -206,7 +206,7 @@
     };
 
     // ========================================================================
-    // ウィンドウ起動ロジック（CSP回避版 - 直接URL構築）
+    // ウィンドウ起動ロジック（iframe内ボタン探索版）
     // ========================================================================
     const launchOneTouchWindows = async () => {
         const enabledPairs = PAIR_CODES;
@@ -220,29 +220,46 @@
         }));
         await Storage.set('fxBot_v16_WindowPositions', positions);
 
-        // ストリーミング注文ページのベースURL
-        const baseUrl = '/servlet/lzca.pc.cht200.servlet.CHt20011';
+        // 1. iframe内のメニューからボタンを探す
+        const iframe = document.querySelector('iframe[name="mainMenu"]');
+        let btn = null;
+
+        if (iframe) {
+            try {
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                btn = doc.querySelector('a[onclick*="_openStream"]');
+            } catch (e) {
+                console.error('iframe access error:', e);
+            }
+        }
+
+        // 2. iframeで見つからない場合、メインフレーム内も探す
+        if (!btn) {
+            btn = document.querySelector('a[onclick*="_openStream"]') ||
+                Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('ワンタッチ'));
+        }
+
+        if (!btn) {
+            alert('起動ボタンが見つかりません。画面上の「ワンタッチ注文」ボタンを手動で押してください。');
+            return;
+        }
 
         await liveLog(`ウィンドウ一括起動を開始...`);
 
+        // 3. 通貨ペアを切り替えながらボタンをクリック
+        // 注意: CSP回避のため window.open のオーバーライドは行わず、単純クリックで起動のみ行う
+        // ポジショニングはService Workerで行うか、後で手動調整が必要です
+
         for (let i = 0; i < enabledPairs.length; i++) {
             const pair = enabledPairs[i];
-            const pos = positions[i];
 
-            // ストリーミング注文URLを構築
-            const streamUrl = `${baseUrl}?P004=1&conNum=${i + 1}`;
-            const windowName = `fxBot_stream_${pair}_${Date.now()}`;
-            const features = `width=${WINDOW_CONFIG.width},height=${WINDOW_CONFIG.height},left=${pos.x},top=${pos.y},resizable=yes,scrollbars=yes,status=no`;
-
-            try {
-                window.open(streamUrl, windowName, features);
-                await liveLog(`[${pair}] ウィンドウ起動`);
-            } catch (e) {
-                console.error(`[${pair}] ウィンドウ起動エラー:`, e);
-            }
+            // ボタンをクリックしてウィンドウを開く
+            // (サイトの仕様上、引数でペアを指定できない場合は全てUSDJPYで開くため、後で切り替えが必要)
+            btn.click();
+            await liveLog(`[${pair}] 起動シグナル送信`);
 
             // 次のウィンドウまで待機（同時起動を回避）
-            await sleep(2000);
+            await sleep(2500);
         }
 
         await liveLog(`全ウィンドウ起動完了`);
