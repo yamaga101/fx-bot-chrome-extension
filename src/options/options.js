@@ -13,8 +13,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btnReset').addEventListener('click', resetSettings);
     document.getElementById('btnCheckUpdate').addEventListener('click', checkUpdate);
 
+    // 自動保存＆Undo用
+    setupAutoSaveAndUndo();
+
     setInterval(updateLog, 1000);
 });
+
+// 履歴管理
+const settingsHistory = [];
+const MAX_HISTORY = 20;
+let isRestoring = false;
+
+function setupAutoSaveAndUndo() {
+    // 自動保存 (Debounce)
+    let timeout;
+    const triggerSave = () => {
+        if (isRestoring) return;
+        clearTimeout(timeout);
+        timeout = setTimeout(async () => {
+            await pushHistory();
+            await saveSettings(true); // true=toastなし
+        }, 500);
+    };
+
+    document.querySelectorAll('input').forEach(el => {
+        el.addEventListener('input', triggerSave);
+        el.addEventListener('change', triggerSave);
+    });
+
+    // Undo (Ctrl+Z / Cmd+Z)
+    document.addEventListener('keydown', async (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            await undoSettings();
+        }
+    });
+}
+
+async function pushHistory() {
+    const current = await chrome.storage.local.get('fxBot_settings');
+    if (settingsHistory.length > 0) {
+        // 直前と同じなら保存しない
+        const last = JSON.stringify(settingsHistory[settingsHistory.length - 1]);
+        if (last === JSON.stringify(current)) return;
+    }
+    settingsHistory.push(current);
+    if (settingsHistory.length > MAX_HISTORY) settingsHistory.shift();
+}
+
+async function undoSettings() {
+    if (settingsHistory.length === 0) {
+        showToast('これ以上戻せません', true);
+        return;
+    }
+    isRestoring = true;
+    const prev = settingsHistory.pop();
+    await chrome.storage.local.set(prev);
+    await loadSettings();
+    showToast('↩ 元に戻しました');
+    isRestoring = false;
+}
 
 async function loadSettings() {
     const { fxBot_settings } = await chrome.storage.local.get('fxBot_settings');
@@ -59,7 +117,7 @@ async function loadSettings() {
     document.getElementById('autoLaunch').checked = settings.autoLaunch !== false;
 }
 
-async function saveSettings() {
+async function saveSettings(silent = false) {
     const pairs = ['USDJPY', 'EURUSD', 'AUDJPY', 'GBPJPY'];
     const maxSpread = {};
     const autoClose = {};
@@ -106,8 +164,28 @@ async function saveSettings() {
     };
 
     await chrome.storage.local.set({ fxBot_settings: settings });
-    await loadSettings();
-    showToast('✓ 保存しました');
+
+    // 自動保存時はロードし直すとカーソルが飛ぶ可能性があるので、値同期だけに留めるべきだが、
+    // EURUSD変換などがあるため一応ロードする。ただしフォーカス維持が必要。
+    // 今回は簡易実装としてリロードする（入力中にカーソルが外れるリスクあり）。
+    // -> 修正: loadSettingsはUI反映を行うため、連打されると不快。storage保存だけで十分？
+    // しかしEURUSDの変換ロジックを通さないと内部値がずれる恐れはない（DOM値を取得して変換して保存だから）。
+    // したがって、saveSettings内でloadSettingsを呼ぶのは「保存ボタン」押下時のみにするのが良いが、
+    // ここではsilentじゃない時だけloadSettingsを呼ぶようにする。
+
+    if (!silent) {
+        await loadSettings();
+        showToast('✓ 保存しました');
+    } else {
+        console.log('Auto saved.');
+        // 自動保存通知（控えめに）
+        const statusEl = document.getElementById('updateMessage');
+        if (statusEl) {
+            const origin = statusEl.innerHTML;
+            statusEl.textContent = '自動保存しました...';
+            setTimeout(() => { if (statusEl.innerHTML === '自動保存しました...') statusEl.innerHTML = origin; }, 1000);
+        }
+    }
 }
 
 function getDefaultSettings() {

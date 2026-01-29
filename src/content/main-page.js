@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '17.6',
+        VERSION: chrome.runtime.getManifest().version,
         DEMO_ONLY: true,
     };
 
@@ -90,17 +90,17 @@
 
         div.innerHTML = `
             <div id="fxBotHeader" style="padding: 12px 16px; background: rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: space-between; cursor: move;">
-                <div style="font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span>🤖</span> FX Bot v${CONFIG.VERSION}</div>
-                <div style="font-size: 10px; opacity: 0.7;">ウィンドウ準備 → 稼働開始</div>
+                <div style="font-weight: bold; font-size: 15px; display: flex; align-items: center; gap: 8px;"><span>🤖</span> FX Bot v${CONFIG.VERSION}</div>
+                <div style="font-size: 11px; opacity: 0.7;">ウィンドウ準備 → 稼働開始</div>
             </div>
             <div style="padding: 16px;">
-                <div id="msgAutoLaunch" style="font-size: 11px; color: #4dabf7; margin-bottom: 8px; text-align: center;">ウィンドウを起動してください</div>
+                <div id="msgAutoLaunch" style="font-size: 12px; color: #4dabf7; margin-bottom: 8px; text-align: center;">ウィンドウを起動してください</div>
 
-                <button id="btnLaunchWindows" style="width: 100%; padding: 12px; background: #4dabf7; border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; margin-bottom: 8px;">🚀 ウィンドウ起動</button>
+                <button id="btnLaunchWindows" style="width: 100%; padding: 12px; background: #4dabf7; border: none; border-radius: 8px; color: #fff; font-size: 15px; font-weight: bold; cursor: pointer; margin-bottom: 8px;">🚀 ウィンドウ起動</button>
 
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <button id="btnStart" style="flex: 1; padding: 12px; background: #20c997; border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer;">▶ 自動売買 ON</button>
-                    <button id="btnStop" style="flex: 1; padding: 12px; background: #ff6b6b; border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; display: none;">⏸ 自動売買 OFF</button>
+                    <button id="btnStart" style="flex: 1; padding: 12px; background: #20c997; border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer;">▶ 自動売買 ON</button>
+                    <button id="btnStop" style="flex: 1; padding: 12px; background: #ff6b6b; border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; display: none;">⏸ 自動売買 OFF</button>
                 </div>
 
                 <div id="pairList" style="max-height: 400px; overflow-y: auto;"></div>
@@ -178,7 +178,7 @@
             if (!container.innerHTML) {
                 container.innerHTML = PAIR_CODES.map(pair => `
                     <div id="card_${pair}" style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; margin-bottom: 8px; border-left: 4px solid ${CURRENCY_PAIRS[pair].style};">
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
                             <b>${CURRENCY_PAIRS[pair].name}</b>
                             <span id="status_${pair}" style="color: #4dabf7; font-size: 10px;">---</span>
                         </div>
@@ -250,9 +250,19 @@
                     document.getElementById(`pl_${pair}`).style.color = pl >= 0 ? '#20c997' : '#ff6b6b';
 
                     // SP表示 (現在値/設定値形式)
-                    const sp = stats.sp || '-';
-                    const maxSp = stats.maxSp || '-';
-                    document.getElementById(`sp_${pair}`).textContent = `${sp}/${maxSp}`;
+                    let sp = stats.sp;
+                    let maxSp = stats.maxSp;
+
+                    // EUR/USD: 9000.0/3000.0 -> 0.9/0.3 に変換
+                    if (pair === 'EURUSD') {
+                        if (sp >= 100) sp = sp / 10000;
+                        if (maxSp >= 100) maxSp = maxSp / 10000;
+                    }
+
+                    const spStr = (typeof sp === 'number') ? sp.toFixed(1) : '-';
+                    const maxSpStr = (typeof maxSp === 'number') ? maxSp.toFixed(1) : '-'; // AUDJPYの1->1.0もここで解決
+
+                    document.getElementById(`sp_${pair}`).textContent = `${spStr}/${maxSpStr}`;
 
                     // WS表示
                     const wsL = stats.wsL || 0;
