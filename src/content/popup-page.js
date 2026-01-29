@@ -132,10 +132,47 @@
 
         // 1. スプレッドチェック (EURUSD対応 0.00005 -> 0.5)
         let sp = getNum(SELECTORS.SPREAD);
-        const maxSp = MAX_SPREAD[currentPair] || 1.0;
+        // ユーザー要望「設定値3000なら表示0.3」。DOM取得値(例0.5)と比較するため、設定値3000を1/10000して0.3に変換して比較
+        const rawMaxSp = MAX_SPREAD[currentPair] || 1.0;
+        const maxSp = (currentPair === 'EURUSD' && rawMaxSp >= 100) ? (rawMaxSp / 10000) : rawMaxSp;
+
         if (currentPair === 'EURUSD' && sp !== null && sp < 1.0) sp = sp * 10000;
 
         if (sp !== null && sp > maxSp) return;
+
+        // 自動決済ロジック
+        const ac = (await Storage.get('fxBot_settings', {}))?.fxBot_settings?.autoClose?.[currentPair];
+        if (ac && ac.enabled && (qL > 0 || qS > 0)) {
+            // Pips計算 (クロス円: 円損益/数量*100, EURUSD: 円損益/数量*100/150仮)
+            const totalPl = plL + plS;
+            const totalQty = qL + qS;
+            let currentPips = 0;
+
+            if (totalQty > 0) {
+                if (currentPair === 'EURUSD') {
+                    // USDJPYレートが不明なため、概算150円で計算
+                    currentPips = (totalPl / totalQty) * 100 / 150;
+                } else {
+                    // クロス円 (USDJPY, AUDJPY, GBPJPY)
+                    currentPips = (totalPl / totalQty) * 100;
+                }
+            }
+
+            // 判定
+            if (currentPips >= ac.tp || currentPips <= -ac.sl) {
+                // 全決済実行 (ボタンを探す)
+                const settleBtn = document.querySelector('button[id*="AllSettle"]') ||
+                    document.querySelector('button[class*="pay-all"]') ||
+                    Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('全決済') || b.innerText.includes('一括決済'));
+
+                if (settleBtn) {
+                    await liveLog(`[${currentPair}] 自動決済実行 (Pips:${currentPips.toFixed(1)})`);
+                    settleBtn.click();
+                    await sleep(2000); // 処理待ち
+                    return; // エントリー処理へ進まない
+                }
+            }
+        }
 
         // 2. グローバルロックチェック（エントリー過剰防止）
         const now = Date.now();
@@ -216,7 +253,8 @@
 
             // スプレッド表示用（EURUSD: 常に10000倍でpips表示）
             const displaySp = (currentPair === 'EURUSD' && sp !== null) ? (sp * 10000) : sp;
-            const maxSp = MAX_SPREAD[currentPair] || 1.0;
+            const rawMaxSp = MAX_SPREAD[currentPair] || 1.0;
+            const maxSp = (currentPair === 'EURUSD' && rawMaxSp >= 100) ? (rawMaxSp / 10000) : rawMaxSp;
 
             // ステータス判定
             let status = '待機中';

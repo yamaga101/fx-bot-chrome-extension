@@ -30,22 +30,59 @@
                         <div class="grid-row">
                             <div class="pair-label" style="border-left-color: #4dabf7;">USD/JPY</div>
                             <div class="center"><input type="checkbox" id="pair_USDJPY" checked></div>
-                            <div><input type="number" id="spread_USDJPY" step="0.1" min="0.0" value="0.5"></div>
+                            <div><input type="number" id="spread_USDJPY" step="0.1" min="0.0" value="0.2"></div>
                         </div>
                         <div class="grid-row">
                             <div class="pair-label" style="border-left-color: #fab005;">EUR/USD</div>
                             <div class="center"><input type="checkbox" id="pair_EURUSD" checked></div>
-                            <div><input type="number" id="spread_EURUSD" step="0.1" min="0.0" value="0.5"></div>
+                            <div><input type="number" id="spread_EURUSD" step="0.1" min="0.0" value="0.3"></div>
                         </div>
                         <div class="grid-row">
                             <div class="pair-label" style="border-left-color: #ff6b6b;">AUD/JPY</div>
                             <div class="center"><input type="checkbox" id="pair_AUDJPY" checked></div>
-                            <div><input type="number" id="spread_AUDJPY" step="0.1" min="0.0" value="1.0"></div>
+                            <div><input type="number" id="spread_AUDJPY" step="0.1" min="0.0" value="0.5"></div>
                         </div>
                         <div class="grid-row">
                             <div class="pair-label" style="border-left-color: #20c997;">GBP/JPY</div>
                             <div class="center"><input type="checkbox" id="pair_GBPJPY" checked></div>
-                            <div><input type="number" id="spread_GBPJPY" step="0.1" min="0.0" value="1.5"></div>
+                            <div><input type="number" id="spread_GBPJPY" step="0.1" min="0.0" value="1.0"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 自動決済設定 -->
+                <section class="card">
+                    <h2>✂️ 自動決済設定 (利確/損切り)</h2>
+                    <p class="desc">指定Pips到達で決済を実行 (0で無効)</p>
+                    <div class="pair-grid-layout" style="grid-template-columns: 1fr 50px 80px 80px;">
+                        <div class="grid-header">ペア</div>
+                        <div class="grid-header">有効</div>
+                        <div class="grid-header">利確(TP)</div>
+                        <div class="grid-header">損切(SL)</div>
+
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #4dabf7;">USD/JPY</div>
+                            <div class="center"><input type="checkbox" id="ac_USDJPY"></div>
+                            <div><input type="number" id="tp_USDJPY" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
+                            <div><input type="number" id="sl_USDJPY" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #fab005;">EUR/USD</div>
+                            <div class="center"><input type="checkbox" id="ac_EURUSD"></div>
+                            <div><input type="number" id="tp_EURUSD" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
+                            <div><input type="number" id="sl_EURUSD" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #ff6b6b;">AUD/JPY</div>
+                            <div class="center"><input type="checkbox" id="ac_AUDJPY"></div>
+                            <div><input type="number" id="tp_AUDJPY" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
+                            <div><input type="number" id="sl_AUDJPY" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="pair-label" style="border-left-color: #20c997;">GBP/JPY</div>
+                            <div class="center"><input type="checkbox" id="ac_GBPJPY"></div>
+                            <div><input type="number" id="tp_GBPJPY" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
+                            <div><input type="number" id="sl_GBPJPY" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
                         </div>
                     </div>
                 </section>

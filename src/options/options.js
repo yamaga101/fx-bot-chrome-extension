@@ -27,9 +27,23 @@ async function loadSettings() {
 
         const spreadInput = document.getElementById(`spread_${pair}`);
         if (spreadInput && settings.maxSpread) {
-            const val = settings.maxSpread[pair] || getDefaultSpread(pair);
+            let val = settings.maxSpread[pair] || getDefaultSpread(pair);
+            // EUR/USDの変換ロジック (保存値3000 -> 表示0.3)
+            if (pair === 'EURUSD' && val >= 100) {
+                val = val / 10000;
+            }
             spreadInput.value = Number(val).toFixed(1);
         }
+
+        // 自動決済設定
+        const ac = settings.autoClose?.[pair] || { enabled: false, tp: 20.0, sl: 10.0 };
+        const acCheck = document.getElementById(`ac_${pair}`);
+        const tpInput = document.getElementById(`tp_${pair}`);
+        const slInput = document.getElementById(`sl_${pair}`);
+
+        if (acCheck) acCheck.checked = ac.enabled;
+        if (tpInput) tpInput.value = ac.tp;
+        if (slInput) slInput.value = ac.sl;
     });
 
     if (settings.betSteps) {
@@ -48,10 +62,22 @@ async function loadSettings() {
 async function saveSettings() {
     const pairs = ['USDJPY', 'EURUSD', 'AUDJPY', 'GBPJPY'];
     const maxSpread = {};
+    const autoClose = {};
 
     pairs.forEach(pair => {
-        const val = parseFloat(document.getElementById(`spread_${pair}`)?.value) || getDefaultSpread(pair);
+        let val = parseFloat(document.getElementById(`spread_${pair}`)?.value) || getDefaultSpread(pair);
+        // EUR/USDの変換ロジック (表示0.3 -> 保存値3000)
+        if (pair === 'EURUSD') {
+            val = val * 10000;
+        }
         maxSpread[pair] = val;
+
+        // 自動決済設定取得
+        autoClose[pair] = {
+            enabled: document.getElementById(`ac_${pair}`)?.checked || false,
+            tp: parseFloat(document.getElementById(`tp_${pair}`)?.value) || 20.0,
+            sl: parseFloat(document.getElementById(`sl_${pair}`)?.value) || 10.0
+        };
     });
 
     const commonInterval = {
@@ -75,6 +101,7 @@ async function saveSettings() {
         orderCooldown: commonInterval,
         globalInterval: commonInterval,
         maxSpread,
+        autoClose,
         autoLaunch: document.getElementById('autoLaunch').checked
     };
 
@@ -89,13 +116,20 @@ function getDefaultSettings() {
         betSteps: [1000, 2000, 4000],
         orderCooldown: { min: 8000, max: 15000 },
         globalInterval: { min: 8000, max: 15000 },
-        maxSpread: { USDJPY: 0.5, EURUSD: 0.5, AUDJPY: 1.0, GBPJPY: 1.5 },
+        maxSpread: { USDJPY: 0.2, EURUSD: 3000.0, AUDJPY: 0.5, GBPJPY: 1.0 },
+        autoClose: {
+            USDJPY: { enabled: false, tp: 20.0, sl: 10.0 },
+            EURUSD: { enabled: false, tp: 20.0, sl: 10.0 },
+            AUDJPY: { enabled: false, tp: 20.0, sl: 10.0 },
+            GBPJPY: { enabled: false, tp: 20.0, sl: 10.0 }
+        },
         autoLaunch: true
     };
 }
 
 function getDefaultSpread(pair) {
-    const map = { USDJPY: 0.5, EURUSD: 0.5, AUDJPY: 1.0, GBPJPY: 1.5 };
+    // デフォルト値変更: USDJPY:0.2, EURUSD:3000.0 (表示0.3), AUDJPY:0.5, GBPJPY:1.0
+    const map = { USDJPY: 0.2, EURUSD: 3000.0, AUDJPY: 0.5, GBPJPY: 1.0 };
     return map[pair] || 0.5;
 }
 
