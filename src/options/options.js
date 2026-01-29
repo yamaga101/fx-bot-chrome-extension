@@ -3,10 +3,12 @@
 // ========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await loadSettings();
-    document.getElementById('currentVersion').textContent = chrome.runtime.getManifest().version;
+    const version = `v${chrome.runtime.getManifest().version}`;
+    document.getElementById('appVersion').textContent = version;
+    document.title = `FX Bot ${version} - 設定`;
 
-    document.getElementById('btnSave').addEventListener('click', saveSettings);
+    await loadSettings();
+
     document.getElementById('btnExport').addEventListener('click', exportSettings);
     document.getElementById('btnImport').addEventListener('click', () => document.getElementById('importFile').click());
     document.getElementById('importFile').addEventListener('change', importSettings);
@@ -21,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 履歴管理
 const settingsHistory = [];
+const redoStack = []; // Redo用スタック
 const MAX_HISTORY = 20;
 let isRestoring = false;
 
@@ -29,6 +32,10 @@ function setupAutoSaveAndUndo() {
     let timeout;
     const triggerSave = () => {
         if (isRestoring) return;
+
+        // 新規変更時はRedoスタックをクリア
+        redoStack.length = 0;
+
         clearTimeout(timeout);
         timeout = setTimeout(async () => {
             await pushHistory();
@@ -41,11 +48,21 @@ function setupAutoSaveAndUndo() {
         el.addEventListener('change', triggerSave);
     });
 
-    // Undo (Ctrl+Z / Cmd+Z)
+    // Undo/Redo (Ctrl+Z, Ctrl+Y, Cmd+Shift+Z)
     document.addEventListener('keydown', async (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const cmd = isMac ? e.metaKey : e.ctrlKey;
+
+        if (cmd && e.key === 'z') {
             e.preventDefault();
-            await undoSettings();
+            if (e.shiftKey) {
+                await redoSettings(); // Cmd+Shift+Z
+            } else {
+                await undoSettings(); // Cmd+Z
+            }
+        } else if (cmd && e.key === 'y') {
+            e.preventDefault();
+            await redoSettings(); // Cmd+Y
         }
     });
 }
@@ -67,10 +84,33 @@ async function undoSettings() {
         return;
     }
     isRestoring = true;
+
+    // 現在の状態をRedoスタックへ退避
+    const current = await chrome.storage.local.get('fxBot_settings');
+    redoStack.push(current);
+
     const prev = settingsHistory.pop();
     await chrome.storage.local.set(prev);
     await loadSettings();
     showToast('↩ 元に戻しました');
+    isRestoring = false;
+}
+
+async function redoSettings() {
+    if (redoStack.length === 0) {
+        showToast('これ以上やり直せません', true);
+        return;
+    }
+    isRestoring = true;
+
+    // 現在の状態をUndoスタックへ（戻せるように）
+    const current = await chrome.storage.local.get('fxBot_settings');
+    settingsHistory.push(current);
+
+    const next = redoStack.pop();
+    await chrome.storage.local.set(next);
+    await loadSettings();
+    showToast('↪ やり直しました');
     isRestoring = false;
 }
 
@@ -86,10 +126,13 @@ async function loadSettings() {
         const spreadInput = document.getElementById(`spread_${pair}`);
         if (spreadInput && settings.maxSpread) {
             let val = settings.maxSpread[pair] || getDefaultSpread(pair);
+
             // EUR/USDの変換ロジック (保存値3000 -> 表示0.3)
+            // 内部値が100以上の場合はpips変換されているとみなして戻す
             if (pair === 'EURUSD' && val >= 100) {
                 val = val / 10000;
             }
+
             spreadInput.value = Number(val).toFixed(1);
         }
 
@@ -194,7 +237,7 @@ function getDefaultSettings() {
         betSteps: [1000, 2000, 4000],
         orderCooldown: { min: 8000, max: 15000 },
         globalInterval: { min: 8000, max: 15000 },
-        maxSpread: { USDJPY: 0.2, EURUSD: 3000.0, AUDJPY: 0.5, GBPJPY: 1.0 },
+        maxSpread: { USDJPY: 0.2, EURUSD: 3000.0, AUDJPY: 0.5, GBPJPY: 0.9 },
         autoClose: {
             USDJPY: { enabled: false, tp: 20.0, sl: 10.0 },
             EURUSD: { enabled: false, tp: 20.0, sl: 10.0 },
@@ -206,8 +249,8 @@ function getDefaultSettings() {
 }
 
 function getDefaultSpread(pair) {
-    // デフォルト値変更: USDJPY:0.2, EURUSD:3000.0 (表示0.3), AUDJPY:0.5, GBPJPY:1.0
-    const map = { USDJPY: 0.2, EURUSD: 3000.0, AUDJPY: 0.5, GBPJPY: 1.0 };
+    // デフォルト値変更
+    const map = { USDJPY: 0.2, EURUSD: 3000.0, AUDJPY: 0.5, GBPJPY: 0.9 };
     return map[pair] || 0.5;
 }
 
@@ -251,29 +294,10 @@ async function resetSettings() {
 }
 
 async function checkUpdate() {
-    const btn = document.getElementById('btnCheckUpdate');
-    btn.disabled = true;
-    btn.textContent = '確認中...';
-
-    try {
-        const result = await chrome.runtime.sendMessage({ action: 'checkUpdate' });
-        const msgEl = document.getElementById('updateMessage');
-
-        if (result && result.hasUpdate) {
-            const downloadUrl = result.downloadUrl || 'https://github.com/yamaga101/fx-bot-chrome-extension/releases';
-            msgEl.innerHTML = `
-                <span class="has-update">🎉 v${result.latestVersion} が利用可能！</span><br>
-                <a href="${downloadUrl}" target="_blank">📥 ダウンロードページを開く</a>
-            `;
-        } else {
-            msgEl.textContent = '✓ 最新バージョンです';
-        }
-    } catch (error) {
-        document.getElementById('updateMessage').textContent = '更新確認に失敗しました';
-    }
-
-    btn.disabled = false;
-    btn.textContent = '更新を確認';
+    showToast('更新中... ブラウザもリロードされます');
+    await chrome.storage.local.set({ fxBot_justReloaded: true });
+    await new Promise(r => setTimeout(r, 500));
+    chrome.runtime.reload();
 }
 
 async function updateLog() {

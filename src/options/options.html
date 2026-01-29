@@ -4,149 +4,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Bot v17.4 - 設定</title>
+    <title>FX Bot - 設定</title>
     <link rel="stylesheet" href="options.css">
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>🤖 FX Bot v17.4</h1>
+            <h1>🤖 FX Bot <span id="appVersion"></span></h1>
             <p class="subtitle">デモ専用自動売買ツール設定</p>
         </header>
 
         <main>
-            <form id="settingsForm">
-                <!-- 通貨ペア & スプレッド設定 -->
-                <section class="card">
-                    <h2>💱 通貨ペア & スプレッド設定</h2>
-                    <p class="desc">使用する通貨ペアと、許容する最大スプレッドを設定します。</p>
+            <!-- 通貨ペア & 取引設定 (統合版) -->
+            <section class="card">
+                <h2>💱 通貨ペア設定 & 自動決済</h2>
+                <p class="desc">最大スプレッドと、自動決済（利確・損切り）の設定を一括管理します。</p>
 
-                    <div class="pair-grid-layout">
-                        <div class="grid-header">ペア</div>
-                        <div class="grid-header">有効</div>
-                        <div class="grid-header">最大SP</div>
+                <div class="pair-grid-layout" style="grid-template-columns: 1fr 50px 70px 60px 80px 80px;">
+                    <div class="grid-header">ペア</div>
+                    <div class="grid-header">有効</div>
+                    <div class="grid-header">最大SP</div>
+                    <div class="grid-header">自動決済</div>
+                    <div class="grid-header">利確(TP)</div>
+                    <div class="grid-header">損切(SL)</div>
 
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #4dabf7;">USD/JPY</div>
-                            <div class="center"><input type="checkbox" id="pair_USDJPY" checked></div>
-                            <div><input type="number" id="spread_USDJPY" step="0.1" min="0.0" value="0.2"></div>
-                        </div>
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #fab005;">EUR/USD</div>
-                            <div class="center"><input type="checkbox" id="pair_EURUSD" checked></div>
-                            <div><input type="number" id="spread_EURUSD" step="0.1" min="0.0" value="0.3"></div>
-                        </div>
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #ff6b6b;">AUD/JPY</div>
-                            <div class="center"><input type="checkbox" id="pair_AUDJPY" checked></div>
-                            <div><input type="number" id="spread_AUDJPY" step="0.1" min="0.0" value="0.5"></div>
-                        </div>
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #20c997;">GBP/JPY</div>
-                            <div class="center"><input type="checkbox" id="pair_GBPJPY" checked></div>
-                            <div><input type="number" id="spread_GBPJPY" step="0.1" min="0.0" value="1.0"></div>
-                        </div>
+                    <!-- USD/JPY -->
+                    <div class="grid-row">
+                        <div class="pair-label" style="border-left-color: #4dabf7;">USD/JPY</div>
+                        <div class="center"><input type="checkbox" id="pair_USDJPY" checked></div>
+                        <div><input type="number" id="spread_USDJPY" step="0.1" min="0.0" value="0.2"></div>
+                        <div class="center"><input type="checkbox" id="ac_USDJPY"></div>
+                        <div><input type="number" id="tp_USDJPY" step="0.1" min="0" value="20.0"></div>
+                        <div><input type="number" id="sl_USDJPY" step="0.1" min="0" value="10.0"></div>
                     </div>
-                </section>
 
-                <!-- 自動決済設定 -->
-                <section class="card">
-                    <h2>✂️ 自動決済設定 (利確/損切り)</h2>
-                    <p class="desc">指定Pips到達で決済を実行 (0で無効)</p>
-                    <div class="pair-grid-layout" style="grid-template-columns: 1fr 50px 80px 80px;">
-                        <div class="grid-header">ペア</div>
-                        <div class="grid-header">有効</div>
-                        <div class="grid-header">利確(TP)</div>
-                        <div class="grid-header">損切(SL)</div>
-
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #4dabf7;">USD/JPY</div>
-                            <div class="center"><input type="checkbox" id="ac_USDJPY"></div>
-                            <div><input type="number" id="tp_USDJPY" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
-                            <div><input type="number" id="sl_USDJPY" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
-                        </div>
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #fab005;">EUR/USD</div>
-                            <div class="center"><input type="checkbox" id="ac_EURUSD"></div>
-                            <div><input type="number" id="tp_EURUSD" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
-                            <div><input type="number" id="sl_EURUSD" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
-                        </div>
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #ff6b6b;">AUD/JPY</div>
-                            <div class="center"><input type="checkbox" id="ac_AUDJPY"></div>
-                            <div><input type="number" id="tp_AUDJPY" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
-                            <div><input type="number" id="sl_AUDJPY" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
-                        </div>
-                        <div class="grid-row">
-                            <div class="pair-label" style="border-left-color: #20c997;">GBP/JPY</div>
-                            <div class="center"><input type="checkbox" id="ac_GBPJPY"></div>
-                            <div><input type="number" id="tp_GBPJPY" step="0.1" min="0" value="20.0" placeholder="Pips"></div>
-                            <div><input type="number" id="sl_GBPJPY" step="0.1" min="0" value="10.0" placeholder="Pips"></div>
-                        </div>
+                    <!-- EUR/USD -->
+                    <div class="grid-row">
+                        <div class="pair-label" style="border-left-color: #fab005;">EUR/USD</div>
+                        <div class="center"><input type="checkbox" id="pair_EURUSD" checked></div>
+                        <div><input type="number" id="spread_EURUSD" step="0.1" min="0.0" value="0.3"></div>
+                        <div class="center"><input type="checkbox" id="ac_EURUSD"></div>
+                        <div><input type="number" id="tp_EURUSD" step="0.1" min="0" value="20.0"></div>
+                        <div><input type="number" id="sl_EURUSD" step="0.1" min="0" value="10.0"></div>
                     </div>
-                </section>
 
-                <!-- エントリー数量条件 -->
-                <section class="card">
-                    <h2>💰 エントリー数量条件</h2>
-                    <p class="desc">勝敗に応じた数量を設定。3連勝でStep1にリセットされます。</p>
-                    <div class="bet-grid">
-                        <div class="form-group-mini">
-                            <label>Step1 (負け後)</label>
-                            <input type="number" id="betStep1" value="1000" step="100" min="100">
-                        </div>
-                        <div class="form-group-mini">
-                            <label>Step2 (1勝後)</label>
-                            <input type="number" id="betStep2" value="2000" step="100" min="100">
-                        </div>
-                        <div class="form-group-mini">
-                            <label>Step3 (2連勝後)</label>
-                            <input type="number" id="betStep3" value="4000" step="100" min="100">
-                        </div>
+                    <!-- AUD/JPY -->
+                    <div class="grid-row">
+                        <div class="pair-label" style="border-left-color: #ff6b6b;">AUD/JPY</div>
+                        <div class="center"><input type="checkbox" id="pair_AUDJPY" checked></div>
+                        <div><input type="number" id="spread_AUDJPY" step="0.1" min="0.0" value="0.5"></div>
+                        <div class="center"><input type="checkbox" id="ac_AUDJPY"></div>
+                        <div><input type="number" id="tp_AUDJPY" step="0.1" min="0" value="20.0"></div>
+                        <div><input type="number" id="sl_AUDJPY" step="0.1" min="0" value="10.0"></div>
                     </div>
-                </section>
 
-                <!-- タイミング設定 -->
-                <section class="card">
-                    <h2>⏱️ エントリー待機間隔 (秒)</h2>
-                    <p class="desc">エントリー間の待機時間（ランダム）</p>
-                    <div class="interval-row">
-                        <input type="number" id="commonIntervalMin" value="8.0" min="1.0" max="60.0" step="0.1">
-                        <span>〜</span>
-                        <input type="number" id="commonIntervalMax" value="15.0" min="1.0" max="60.0" step="0.1">
-                        <span class="unit">秒</span>
+                    <!-- GBP/JPY -->
+                    <div class="grid-row">
+                        <div class="pair-label" style="border-left-color: #20c997;">GBP/JPY</div>
+                        <div class="center"><input type="checkbox" id="pair_GBPJPY" checked></div>
+                        <div><input type="number" id="spread_GBPJPY" step="0.1" min="0.0" value="0.9"></div>
+                        <div class="center"><input type="checkbox" id="ac_GBPJPY"></div>
+                        <div><input type="number" id="tp_GBPJPY" step="0.1" min="0" value="20.0"></div>
+                        <div><input type="number" id="sl_GBPJPY" step="0.1" min="0" value="10.0"></div>
                     </div>
-                </section>
-
-                <!-- その他 -->
-                <div class="card checkbox-card">
-                    <label for="autoLaunch">
-                        <input type="checkbox" id="autoLaunch" checked>
-                        <span>起動時にウィンドウを自動オープン</span>
-                    </label>
                 </div>
+            </section>
+
+            <!-- エントリー数量条件 -->
+            <section class="card">
+                <h2>💰 エントリー数量条件</h2>
+                <p class="desc">勝敗に応じた数量を設定。3連勝でStep1にリセットされます。</p>
+                <div class="bet-grid">
+                    <div class="form-group-mini">
+                        <label>Step1 (負け後)</label>
+                        <input type="number" id="betStep1" value="1000" step="100" min="100">
+                    </div>
+                    <div class="form-group-mini">
+                        <label>Step2 (1勝後)</label>
+                        <input type="number" id="betStep2" value="2000" step="100" min="100">
+                    </div>
+                    <div class="form-group-mini">
+                        <label>Step3 (2連勝後)</label>
+                        <input type="number" id="betStep3" value="4000" step="100" min="100">
+                    </div>
+                </div>
+            </section>
+
+            <!-- タイミング設定 -->
+            <section class="card">
+                <h2>⏱️ エントリー待機間隔 (秒)</h2>
+                <p class="desc">エントリー間の待機時間（ランダム）</p>
+                <div class="interval-row">
+                    <input type="number" id="commonIntervalMin" value="8.0" min="1.0" max="60.0" step="0.1">
+                    <span>〜</span>
+                    <input type="number" id="commonIntervalMax" value="15.0" min="1.0" max="60.0" step="0.1">
+                    <span class="unit">秒</span>
+                </div>
+            </section>
+
+            <!-- その他 -->
+            <div class="card checkbox-card">
+                <label for="autoLaunch">
+                    <input type="checkbox" id="autoLaunch" checked>
+                    <span>起動時にウィンドウを自動オープン</span>
+                </label>
+            </div>
             </form>
 
             <!-- アクションボタン -->
             <div class="actions">
-                <button id="btnSave" class="btn btn-primary">💾 保存</button>
                 <button id="btnExport" class="btn btn-secondary">📤 エクスポート</button>
                 <button id="btnImport" class="btn btn-secondary">📥 インポート</button>
                 <button id="btnReset" class="btn btn-danger">🗑️ リセット</button>
+                <button id="btnCheckUpdate" class="btn btn-primary" style="margin-left:auto;">🔄 更新を確認</button>
             </div>
 
-            <!-- 更新情報 -->
-            <section class="card">
-                <h2>🔄 更新情報</h2>
-                <div id="updateStatus">
-                    <p>現在: <strong id="currentVersion">-</strong></p>
-                    <p id="updateMessage"></p>
-                </div>
-                <div class="actions">
-                    <button id="btnCheckUpdate" class="btn btn-primary">更新を確認</button>
-                </div>
-            </section>
+            <div id="updateMessage" style="text-align: right; font-size: 12px; color: #888; margin-top: 4px;"></div>
+
 
             <!-- ログ表示 -->
             <section class="card">

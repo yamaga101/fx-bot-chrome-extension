@@ -219,6 +219,8 @@
             }
             for (const pair of PAIR_CODES) {
                 const stats = await Storage.get(`fxBot_v16_UI_${pair}`, {});
+                // console.log(`[FXBot] UI Debug (${pair}):`, stats); // デバッグ用
+
                 if (document.getElementById(`pos_${pair}`)) {
                     // ステータス表示
                     const statusEl = document.getElementById(`status_${pair}`);

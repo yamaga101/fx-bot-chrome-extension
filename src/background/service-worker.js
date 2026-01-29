@@ -5,6 +5,22 @@
 
 // インストール時の初期化
 chrome.runtime.onInstalled.addListener(async (details) => {
+    // リロード後のタブ自動更新処理
+    const { fxBot_justReloaded } = await chrome.storage.local.get('fxBot_justReloaded');
+    if (fxBot_justReloaded) {
+        console.log('Extensions reloaded. Refreshing tabs...');
+        await chrome.storage.local.remove('fxBot_justReloaded');
+
+        // 取引画面をリロード
+        const tabs = await chrome.tabs.query({ url: 'https://vt-fx.gaikaex.com/*' });
+        for (const tab of tabs) {
+            chrome.tabs.reload(tab.id);
+        }
+
+        // オプションページを再開
+        chrome.runtime.openOptionsPage();
+    }
+
     if (details.reason === 'install') {
         console.log('FX Bot v16.2 installed');
 

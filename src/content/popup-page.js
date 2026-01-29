@@ -13,9 +13,11 @@
     const MONITOR_MS = 250; // 少し余裕を持たせる
 
     // 動的設定
+    // 動的設定
     let ORDER_COOLDOWN_MS = { min: 10000, max: 20000 };
     let GLOBAL_ORDER_INTERVAL_MS = { min: 8000, max: 15000 };
-    let MAX_SPREAD = { USDJPY: 0.5, EURUSD: 0.5, AUDJPY: 1.0, GBPJPY: 1.5 };
+    // 初期値も最新のデフォルトに合わせる (EURUSDは内部値3000)
+    let MAX_SPREAD = { USDJPY: 0.2, EURUSD: 3000.0, AUDJPY: 0.5, GBPJPY: 0.9 };
 
     const SELECTORS = {
         SELL_BTN: 'btn-sell',
@@ -68,8 +70,17 @@
             if (fxBot_settings.orderCooldown) ORDER_COOLDOWN_MS = fxBot_settings.orderCooldown;
             if (fxBot_settings.globalInterval) GLOBAL_ORDER_INTERVAL_MS = fxBot_settings.globalInterval;
             if (fxBot_settings.maxSpread) MAX_SPREAD = fxBot_settings.maxSpread;
+            console.log('[FXBot] Settings Loaded:', MAX_SPREAD);
         }
     };
+
+    // 設定変更をリアルタイム検知
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.fxBot_settings) {
+            console.log('[FXBot] Settings Changed. Reloading...');
+            loadDynamicSettings();
+        }
+    });
 
     // ========================================================================
     // 通貨ペア特定（PairIndex優先でウィンドウ配置を確実に）
@@ -136,7 +147,7 @@
         const rawMaxSp = MAX_SPREAD[currentPair] || 1.0;
         const maxSp = (currentPair === 'EURUSD' && rawMaxSp >= 100) ? (rawMaxSp / 10000) : rawMaxSp;
 
-        if (currentPair === 'EURUSD' && sp !== null && sp < 1.0) sp = sp * 10000;
+        if (currentPair === 'EURUSD' && sp !== null && sp < 0.01) sp = sp * 10000;
 
         if (sp !== null && sp > maxSp) return;
 
@@ -251,8 +262,18 @@
             const plL = getNum(SELECTORS.PL_YEN_BUY) || 0;
             const plS = getNum(SELECTORS.PL_YEN_SELL) || 0;
 
-            // スプレッド表示用（EURUSD: 常に10000倍でpips表示）
-            const displaySp = (currentPair === 'EURUSD' && sp !== null) ? (sp * 10000) : sp;
+            // スプレッド表示用
+            let displaySp = sp;
+            if (currentPair === 'EURUSD' && sp !== null) {
+                // DOM値が0.01未満（旧仕様）の場合のみ10000倍する。0.9などの既変換値はそのまま。
+                if (sp < 0.01) displaySp = sp * 10000;
+            }
+
+            // デバッグログ
+            if (sp !== null) {
+                console.log(`[FXBot] ${currentPair} rawSp:${sp} -> displaySp:${displaySp}`);
+            }
+
             const rawMaxSp = MAX_SPREAD[currentPair] || 1.0;
             const maxSp = (currentPair === 'EURUSD' && rawMaxSp >= 100) ? (rawMaxSp / 10000) : rawMaxSp;
 
@@ -267,7 +288,7 @@
             } else if (qL > 0 || qS > 0) {
                 status = 'ポジション保有';
             } else if (displaySp !== null && displaySp > maxSp) {
-                status = `SP超過 (${displaySp?.toFixed(1)}>${maxSp})`;
+                status = `SP超過 (${Number(displaySp).toFixed(1)}>${Number(maxSp).toFixed(1)})`;
             } else {
                 const now = Date.now();
                 const globalLock = await Storage.get('fxBot_v16_GlobalOrderLock', 0);
@@ -287,7 +308,7 @@
             // UI更新（常に実行）
             await Storage.set(`fxBot_v16_UI_${currentPair}`, {
                 status,
-                sp: displaySp?.toFixed(1) || '-',
+                sp: displaySp, // 数値のまま渡す(main-page.jsで整形)
                 maxSp,
                 qL, qS, plL, plS,
                 wsL, wsS
