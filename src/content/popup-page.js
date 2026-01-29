@@ -183,6 +183,14 @@
         if (pl === 0) return;
         const isWin = pl > 0;
         const keyStep = `STEP_${side === 'Long' ? 'L' : 'S'}`;
+        const keyStreak = `WIN_STREAK_${side === 'Long' ? 'L' : 'S'}`;
+
+        // 連勝数更新
+        let streak = await getPairCfg(currentPair, keyStreak, 0);
+        streak = isWin ? streak + 1 : 0;
+        await setPairCfg(currentPair, keyStreak, streak);
+
+        // ステップ更新
         let step = await getPairCfg(currentPair, keyStep, 1);
         if (isWin) {
             step = (step >= BET_STEPS.length) ? 1 : step + 1;
@@ -190,7 +198,7 @@
             step = 1;
         }
         await setPairCfg(currentPair, keyStep, step);
-        await liveLog(`[${currentPair}] ${isWin ? 'Win' : 'Loss'} ${pl.toFixed(1)}円 → Step${step}`);
+        await liveLog(`[${currentPair}] ${isWin ? 'Win' : 'Loss'} ${pl.toFixed(1)}円 (Streak:${streak}) → Step${step}`);
     };
     // ========================================================================
     // メインループ
@@ -234,12 +242,17 @@
                 }
             }
 
+            // 連勝数取得
+            const wsL = await getPairCfg(currentPair, 'WIN_STREAK_L', 0);
+            const wsS = await getPairCfg(currentPair, 'WIN_STREAK_S', 0);
+
             // UI更新（常に実行）
             await Storage.set(`fxBot_v16_UI_${currentPair}`, {
                 status,
                 sp: displaySp?.toFixed(1) || '-',
                 maxSp,
-                qL, qS, plL, plS
+                qL, qS, plL, plS,
+                wsL, wsS
             });
 
             // 停止中またはオーダー中はエントリーロジックをスキップ

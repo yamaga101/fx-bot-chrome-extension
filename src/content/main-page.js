@@ -13,7 +13,7 @@
     // 設定 & 定数
     // ========================================================================
     const CONFIG = {
-        VERSION: '17.4',
+        VERSION: '17.5',
         DEMO_ONLY: true,
     };
 
@@ -186,11 +186,36 @@
                             <span id="pos_${pair}">S:0 / L:0</span>
                             <span>P/L: <span id="pl_${pair}">0</span></span>
                         </div>
-                        <div style="font-size: 10px; color: #aaa;">
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #aaa;">
                             <span>SP: <span id="sp_${pair}" style="color: #ffd700;">-</span></span>
+                            <span>WS: <span id="ws_${pair}">L0/S0</span> <span style="cursor:pointer; color:#4dabf7;" onclick="window.postMessage({ type: 'RESET_WS', pair: '${pair}' }, '*')">↺</span></span>
                         </div>
                     </div>
                 `).join('');
+
+                // フッターに全体リセットボタン
+                const footer = document.createElement('div');
+                footer.style.cssText = 'padding: 8px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);';
+                footer.innerHTML = `<button id="btnResetAllWS" style="font-size: 10px; background: #333; color: #aaa; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; cursor: pointer;">全ペア連勝数リセット</button>`;
+                container.parentElement.appendChild(footer);
+
+                document.getElementById('btnResetAllWS').addEventListener('click', async () => {
+                    if (confirm('全通貨ペアの連勝数をリセットしますか？')) {
+                        for (const p of PAIR_CODES) {
+                            await Storage.set(`fxBot_v16_${p}_WIN_STREAK_L`, 0);
+                            await Storage.set(`fxBot_v16_${p}_WIN_STREAK_S`, 0);
+                        }
+                    }
+                });
+
+                // 個別リセット用リスナー
+                window.addEventListener('message', async (e) => {
+                    if (e.data && e.data.type === 'RESET_WS') {
+                        const p = e.data.pair;
+                        await Storage.set(`fxBot_v16_${p}_WIN_STREAK_L`, 0);
+                        await Storage.set(`fxBot_v16_${p}_WIN_STREAK_S`, 0);
+                    }
+                });
             }
             for (const pair of PAIR_CODES) {
                 const stats = await Storage.get(`fxBot_v16_UI_${pair}`, {});
@@ -228,6 +253,11 @@
                     const sp = stats.sp || '-';
                     const maxSp = stats.maxSp || '-';
                     document.getElementById(`sp_${pair}`).textContent = `${sp}/${maxSp}`;
+
+                    // WS表示
+                    const wsL = stats.wsL || 0;
+                    const wsS = stats.wsS || 0;
+                    document.getElementById(`ws_${pair}`).innerHTML = `L${wsL}/S${wsS} <span style="cursor:pointer; color:#4dabf7;" onclick="window.postMessage({ type: 'RESET_WS', pair: '${pair}' }, '*')">↺</span>`;
                 }
             }
         }, 500);
